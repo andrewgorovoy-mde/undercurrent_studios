@@ -1,0 +1,505 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Oklahoma hail history, base v1 / spatial exposure v2",
+  "type": "object",
+  "required": [
+    "schemaVersion",
+    "status",
+    "period",
+    "sources",
+    "provenance",
+    "method",
+    "coverage",
+    "counties",
+    "zctas"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "enum": [
+        1,
+        2
+      ]
+    },
+    "status": {
+      "enum": [
+        "verified-import",
+        "manual-import"
+      ]
+    },
+    "period": {
+      "type": "object",
+      "required": [
+        "start",
+        "end"
+      ],
+      "properties": {
+        "start": {
+          "type": "string",
+          "format": "date"
+        },
+        "end": {
+          "type": "string",
+          "format": "date"
+        }
+      }
+    },
+    "counties": {
+      "type": "object",
+      "minProperties": 77,
+      "maxProperties": 77,
+      "additionalProperties": {
+        "$ref": "#/$defs/location"
+      }
+    },
+    "zctas": {
+      "type": "object",
+      "additionalProperties": {
+        "$ref": "#/$defs/location"
+      }
+    },
+    "sources": {
+      "type": "array",
+      "minItems": 2
+    },
+    "provenance": {
+      "type": "object"
+    },
+    "method": {
+      "type": "object"
+    },
+    "coverage": {
+      "type": "object",
+      "required": [
+        "coveredConvectiveDays",
+        "missingConvectiveDates",
+        "radarUptimeVerified"
+      ],
+      "properties": {
+        "coveredConvectiveDays": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "missingConvectiveDates": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "format": "date"
+          }
+        },
+        "radarUptimeVerified": {
+          "const": false
+        }
+      }
+    }
+  },
+  "$defs": {
+    "count": {
+      "type": [
+        "integer",
+        "null"
+      ],
+      "minimum": 0
+    },
+    "location": {
+      "type": "object",
+      "required": [
+        "id",
+        "kind",
+        "name",
+        "status",
+        "recordedExposureDays",
+        "yearsWithObservedExposure",
+        "sizeCategories",
+        "largestModeledHail",
+        "years",
+        "annualExposureRate",
+        "countyAssignments",
+        "oklahomaAreaFraction"
+      ],
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^[0-9]{5}$"
+        },
+        "kind": {
+          "enum": [
+            "county",
+            "zcta"
+          ]
+        },
+        "name": {
+          "type": "string"
+        },
+        "status": {
+          "enum": [
+            "available",
+            "unavailable"
+          ]
+        },
+        "recordedExposureDays": {
+          "$ref": "#/$defs/count"
+        },
+        "yearsWithObservedExposure": {
+          "$ref": "#/$defs/count"
+        },
+        "oklahomaAreaFraction": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "countyAssignments": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": [
+              "geoid",
+              "name",
+              "areaShare"
+            ],
+            "properties": {
+              "geoid": {
+                "type": "string"
+              },
+              "name": {
+                "type": "string"
+              },
+              "areaShare": {
+                "type": "number",
+                "minimum": 0,
+                "maximum": 1.000001
+              }
+            }
+          }
+        },
+        "sizeCategories": {
+          "type": "array",
+          "minItems": 7,
+          "maxItems": 7,
+          "items": {
+            "type": "object",
+            "required": [
+              "id",
+              "label",
+              "exposureDays",
+              "maxDailySeverityDays"
+            ],
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "label": {
+                "type": "string"
+              },
+              "exposureDays": {
+                "$ref": "#/$defs/count"
+              },
+              "maxDailySeverityDays": {
+                "$ref": "#/$defs/count"
+              }
+            }
+          }
+        },
+        "largestModeledHail": {
+          "type": [
+            "object",
+            "null"
+          ],
+          "properties": {
+            "category": {
+              "type": "string"
+            },
+            "lowerIn": {
+              "type": "number",
+              "minimum": 0.5
+            },
+            "upperIn": {
+              "type": [
+                "number",
+                "null"
+              ]
+            },
+            "exactIn": {
+              "type": "null"
+            }
+          }
+        },
+        "years": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "object",
+            "required": [
+              "year",
+              "status",
+              "expectedDays",
+              "coveredDays",
+              "missingDays",
+              "recordedExposureDays"
+            ],
+            "properties": {
+              "year": {
+                "type": "integer"
+              },
+              "status": {
+                "enum": [
+                  "complete",
+                  "partial",
+                  "gapped",
+                  "missing"
+                ]
+              },
+              "expectedDays": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 366
+              },
+              "coveredDays": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 366
+              },
+              "missingDays": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 366
+              },
+              "recordedExposureDays": {
+                "$ref": "#/$defs/count"
+              }
+            }
+          }
+        },
+        "annualExposureRate": {
+          "type": [
+            "object",
+            "null"
+          ],
+          "required": [
+            "estimate",
+            "lower95",
+            "upper95",
+            "completeYears",
+            "exposureDaysUsed",
+            "confidenceLevel",
+            "method"
+          ],
+          "properties": {
+            "estimate": {
+              "type": "number",
+              "minimum": 0
+            },
+            "lower95": {
+              "type": "number",
+              "minimum": 0
+            },
+            "upper95": {
+              "type": "number",
+              "minimum": 0
+            },
+            "completeYears": {
+              "type": "array",
+              "minItems": 2,
+              "items": {
+                "type": "integer"
+              }
+            },
+            "exposureDaysUsed": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "confidenceLevel": {
+              "const": 0.95
+            },
+            "method": {
+              "type": "string"
+            }
+          }
+        }
+      }
+    },
+    "propertyExposure": {
+      "type": "object",
+      "required": [
+        "thresholdIn",
+        "weighting",
+        "completeYears",
+        "qualifyingRecordedDays",
+        "qualifyingDaysInCompleteYears",
+        "meanDailyCoverageFraction",
+        "annualExposureDaysRate",
+        "annualHitAreaFractions",
+        "locationYearPatternAreaFractions",
+        "probabilities",
+        "typicalHailSize",
+        "sizeAreaExposureDays",
+        "model",
+        "limitations"
+      ],
+      "properties": {
+        "thresholdIn": {
+          "const": 1.5
+        },
+        "weighting": {
+          "const": "area"
+        },
+        "completeYears": {
+          "type": "array",
+          "items": {
+            "type": "integer"
+          }
+        },
+        "qualifyingRecordedDays": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "qualifyingDaysInCompleteYears": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "meanDailyCoverageFraction": {
+          "type": [
+            "number",
+            "null"
+          ],
+          "minimum": 0,
+          "maximum": 1.000001
+        },
+        "annualExposureDaysRate": {
+          "type": [
+            "number",
+            "null"
+          ],
+          "minimum": 0
+        },
+        "annualHitAreaFractions": {
+          "type": "array",
+          "items": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 1.000001
+          }
+        },
+        "locationYearPatternAreaFractions": {
+          "type": [
+            "array",
+            "null"
+          ],
+          "items": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 1.000001
+          }
+        },
+        "probabilities": {
+          "type": [
+            "object",
+            "null"
+          ],
+          "required": [
+            "1",
+            "5",
+            "10"
+          ],
+          "additionalProperties": {
+            "type": "object",
+            "required": [
+              "central",
+              "lower95",
+              "upper95"
+            ],
+            "properties": {
+              "central": {
+                "type": "number",
+                "minimum": 0,
+                "maximum": 1.000001
+              },
+              "lower95": {
+                "type": "number",
+                "minimum": 0,
+                "maximum": 1.000001
+              },
+              "upper95": {
+                "type": "number",
+                "minimum": 0,
+                "maximum": 1.000001
+              }
+            }
+          }
+        },
+        "typicalHailSize": {
+          "type": [
+            "object",
+            "null"
+          ],
+          "properties": {
+            "id": {
+              "type": "string"
+            },
+            "label": {
+              "type": "string"
+            },
+            "areaExposureDayShare": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1.000001
+            }
+          }
+        },
+        "sizeAreaExposureDays": {
+          "type": "array",
+          "minItems": 7,
+          "maxItems": 7,
+          "items": {
+            "type": "number",
+            "minimum": 0
+          }
+        }
+      }
+    }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "schemaVersion": {
+            "const": 2
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "counties": {
+            "additionalProperties": {
+              "required": [
+                "propertyExposure"
+              ],
+              "properties": {
+                "propertyExposure": {
+                  "$ref": "#/$defs/propertyExposure"
+                },
+                "annualExposureRate": {
+                  "type": "null"
+                }
+              }
+            }
+          },
+          "zctas": {
+            "additionalProperties": {
+              "required": [
+                "propertyExposure"
+              ],
+              "properties": {
+                "propertyExposure": {
+                  "$ref": "#/$defs/propertyExposure"
+                },
+                "annualExposureRate": {
+                  "type": "null"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  ]
+}

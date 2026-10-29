@@ -1,0 +1,20 @@
+import {describe,it,expect} from 'vitest';
+import {calculateClaim} from './insurance';
+import type {ClaimInputs} from './domain';
+const base:ClaimInputs={loss:20000,basis:'RCV',coverage:'covered',approval:'approved',approvedFraction:1,deductible:{kind:'fixed',value:2000,dwellingCoverage:300000},depreciationFraction:.25,coverageLimit:300000,repairsCompleted:false};
+describe('hypothetical claims',()=>{
+ it('applies a fixed deductible and shows unpaid RCV depreciation',()=>{const r=calculateClaim(base);expect(r.approvedLoss).toBe(20000);expect(r.deductible).toBe(2000);expect(r.depreciation).toBe(5000);expect(r.initial).toBe(13000);expect(r.recoverable).toBe(5000);expect(r.finalPotential).toBe(18000);expect(r.payment).toBe(13000);expect(r.outOfPocket).toBe(7000)});
+ it('uses dwelling coverage, not loss, for percentage deductible',()=>{expect(calculateClaim({...base,deductible:{kind:'percentage',value:2,dwellingCoverage:300000}}).deductible).toBe(6000)});
+ it('recovers RCV depreciation only after completed repairs',()=>{const r=calculateClaim({...base,repairsCompleted:true});expect(r.payment).toBe(18000);expect(r.outOfPocket).toBe(2000);expect(r.recoverable).toBe(5000)});
+ it('never recovers ACV depreciation',()=>{const r=calculateClaim({...base,basis:'ACV',repairsCompleted:true});expect(r.payment).toBe(13000);expect(r.recoverable).toBe(0)});
+ it('keeps payments zero below the deductible',()=>{const r=calculateClaim({...base,loss:1500});expect(r.payment).toBe(0);expect(r.finalPotential).toBe(0);expect(r.recoverable).toBe(0);expect(r.outOfPocket).toBe(1500)});
+ it('caps insurer payments after deductible and caps recovery at the same limit',()=>{const r=calculateClaim({...base,coverageLimit:10000,repairsCompleted:true});expect(r.initial).toBe(10000);expect(r.payment).toBe(10000);expect(r.recoverable).toBe(0);expect(r.outOfPocket).toBe(10000)});
+ it('applies the dwelling cap even if roof cap is larger',()=>{expect(calculateClaim({...base,deductible:{kind:'fixed',value:0,dwellingCoverage:5000},repairsCompleted:true}).payment).toBe(5000)});
+ it('leaves unapproved damage with the homeowner',()=>{const r=calculateClaim({...base,approvedFraction:.5,repairsCompleted:true});expect(r.approvedLoss).toBe(10000);expect(r.unapprovedLoss).toBe(10000);expect(r.payment).toBe(8000);expect(r.outOfPocket).toBe(12000)});
+ it.each([{coverage:'unknown'},{coverage:'excluded'},{approval:'pending'},{approval:'denied'},{basis:'Unknown'}] as Partial<ClaimInputs>[])('does not assume payment for unresolved/excluded inputs: %o',patch=>{const r=calculateClaim({...base,...patch});expect(r.payment).toBe(0);expect(r.approvedLoss).toBe(0);expect(r.outOfPocket).toBe(20000)});
+ it('supports 100% depreciation without negative initial payments',()=>{const r=calculateClaim({...base,depreciationFraction:1});expect(r.initial).toBe(0);expect(r.recoverable).toBe(18000)});
+ it.each([-1,NaN,Infinity,undefined])('rejects invalid or missing losses %s',loss=>expect(()=>calculateClaim({...base,loss:loss as number})).toThrow());
+ it.each([-.1,1.1,NaN])('rejects invalid depreciation %s',depreciationFraction=>expect(()=>calculateClaim({...base,depreciationFraction})).toThrow());
+ it('rejects missing claim fields and excessive percentage deductible',()=>{expect(()=>calculateClaim(undefined as unknown as ClaimInputs)).toThrow();expect(()=>calculateClaim({...base,deductible:{...base.deductible,kind:'percentage',value:101}})).toThrow();expect(()=>calculateClaim({...base,approvedFraction:NaN})).toThrow()});
+ it('conserves physical loss for partial approvals, limits, deductible and basis combinations',()=>{for(const basis of ['RCV','ACV'] as const)for(const loss of [0,1000,10000,100000])for(const coverageLimit of [0,3000,300000]){const r=calculateClaim({...base,basis,loss,coverageLimit,approvedFraction:.7,repairsCompleted:true});expect(r.payment+r.outOfPocket).toBeCloseTo(loss,8);expect(r.payment).toBeGreaterThanOrEqual(0);expect(r.payment).toBeLessThanOrEqual(loss);expect(r.initial+r.recoverable).toBeCloseTo(r.finalPotential)}});
+});

@@ -1,0 +1,19 @@
+import {describe,it,expect} from 'vitest';
+import {grantAmount,financialComparison,type FinancialPlan} from './financial';
+import type {GrantInputs,VulnerabilityModel} from './domain';
+const grant:GrantInputs={eligible:true,approved:true,fundingAvailable:true,requested:12000,maximum:10000,eligibleCost:7000};
+const noDamage:VulnerabilityModel={id:'none',quality:'Prototype assumption',source:'test',evaluate:()=>({none:1,repair:0,replacement:0,repairCostFraction:.3})};
+const claim={basis:'RCV',coverage:'covered',approval:'approved',approvedFraction:1,deductible:{kind:'fixed',value:1000,dwellingCoverage:300000},depreciationFraction:0,coverageLimit:300000,repairsCompleted:true} as const;
+const keep:FinancialPlan={id:'keep',label:'Keep',profile:{material:'Standard asphalt',impactRating:'Unrated',age:12,previousDamage:false,system:'conventional',condition:'Unknown'},replacementCost:10000,installationCost:0,grant:0,annualPremium:3000,claim};
+const conventional:FinancialPlan={...keep,id:'conventional',label:'Conventional',profile:{...keep.profile,age:0},installationCost:10000};
+const fortified:FinancialPlan={...conventional,id:'fortified',label:'FORTIFIED',installationCost:13000,grant:10000,annualPremium:2251};
+describe('grants and expected financial costs',()=>{
+ it('caps grants at requested, program maximum and eligible work cost',()=>{expect(grantAmount(grant)).toBe(7000);expect(grantAmount({...grant,eligibleCost:20000})).toBe(10000);expect(grantAmount({...grant,requested:500})).toBe(500)});
+ it.each(['eligible','approved','fundingAvailable'] as const)('requires explicit %s before any grant',key=>expect(grantAmount({...grant,[key]:false})).toBe(0));
+ it('rejects invalid requests and missing eligibility flags',()=>{expect(()=>grantAmount({...grant,requested:-1})).toThrow();expect(()=>grantAmount({...grant,approved:undefined!})).toThrow()});
+ it.each([1,5,10])('applies upfront, grant and premiums once over %i years',years=>{const r=financialComparison([keep,conventional,fortified],[{hail:'small',annualRate:0}],noDamage,years,1,1,null);expect(r[0].total).toBe(3000*years);expect(r[1].total).toBe(10000+3000*years);expect(r[2].total).toBe(3000+2251*years)});
+ it('charges a scheduled replacement only within the horizon and only to keep',()=>{const r=financialComparison([keep,conventional],[{hail:'small',annualRate:0}],noDamage,5,1,1,3);expect(r[0].scheduledReplacement).toBe(10000);expect(r[1].scheduledReplacement).toBe(0);expect(financialComparison([keep,conventional],[{hail:'small',annualRate:0}],noDamage,1,1,1,3)[0].scheduledReplacement).toBe(0)});
+ it('does not charge a scheduled replacement for roofs already storm-replaced',()=>{const oldOnly:VulnerabilityModel={...noDamage,evaluate:p=>p.age>0?{none:0,repair:0,replacement:1,repairCostFraction:.3}:noDamage.evaluate(p)};const r=financialComparison([keep,conventional],[{hail:'large',annualRate:1}],oldOnly,2,1,1,2)[0];expect(r.scheduledReplacement).toBeCloseTo(Math.exp(-1)*10000);expect(r.expectedStormLoss+r.scheduledReplacement).toBeCloseTo(10000);expect(r.expectedStormOutOfPocket).toBeCloseTo((1-Math.exp(-1))*1000)});
+ it('treats insurance as compensation for loss, never a positive investment return',()=>{const damage:VulnerabilityModel={...noDamage,evaluate:()=>({none:0,repair:1,replacement:0,repairCostFraction:.5})};const r=financialComparison([keep,conventional],[{hail:'large',annualRate:.2}],damage,5,1,1,null)[0];expect(r.expectedStormLoss).toBe(5000);expect(r.expectedInsurerCompensation).toBe(4000);expect(r.expectedStormOutOfPocket).toBe(1000);expect(r.total).toBe(16000)});
+ it('rejects invalid horizons and filing chances',()=>{expect(()=>financialComparison([keep,conventional],[],noDamage,0,1,1,null)).toThrow();expect(()=>financialComparison([keep,conventional],[{hail:'small',annualRate:0}],noDamage,5,2,1,null)).toThrow()});
+});

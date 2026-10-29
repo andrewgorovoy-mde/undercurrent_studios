@@ -1,0 +1,44 @@
+[
+  {
+    "hail_min": 0.5,
+    "hail_max": 0.99,
+    "label": "0.5-0.99",
+    "features": 2425299
+  },
+  {
+    "hail_min": 1.0,
+    "hail_max": 1.49,
+    "label": "1.0-1.49",
+    "features": 559333
+  },
+  {
+    "hail_min": 1.5,
+    "hail_max": 1.99,
+    "label": "1.5-1.99",
+    "features": 204539
+  },
+  {
+    "hail_min": 2.0,
+    "hail_max": 2.49,
+    "label": "2.0-2.49",
+    "features": 84831
+  },
+  {
+    "hail_min": 2.5,
+    "hail_max": 2.99,
+    "label": "2.5-2.99",
+    "features": 37454
+  },
+  {
+    "hail_min": 4.0,
+    "hail_max": 10.0,
+    "label": "4.0-10.0",
+    "features": 7887
+  },
+  {
+    "hail_min": 3.0,
+    "hail_max": 3.99,
+    "label": "3.0-3.99",
+    "features": 17151
+  }
+]

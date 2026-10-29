@@ -1,0 +1,554 @@
+{
+  "thresholdIn": 1.5,
+  "weighting": "area; no verified residential-location weights available",
+  "geographicAudit": {
+    "methodVersion": "fixed-location-footprint-year-v1",
+    "manifestSha256": "a32f665e73c20330bfa8277055195ddd7760e31f1a5bfb586b779d73b448695a",
+    "crs": [
+      {
+        "kind": "county",
+        "sourceCrs": 4269,
+        "intersectionCrs": 5070,
+        "areaUnits": "square meters"
+      },
+      {
+        "kind": "zcta",
+        "sourceCrs": 4269,
+        "intersectionCrs": 5070,
+        "areaUnits": "square meters"
+      }
+    ],
+    "rawFeatures": 3336494,
+    "bboxCandidates": 131275,
+    "positiveAreaIntersections": 103265,
+    "bboxOnlyRejected": 28010,
+    "boundaryOnlyRejected": 0,
+    "invalidHailGeometries": 0,
+    "invalidCountyGeometries": 0,
+    "invalidFiles": [],
+    "countyAreaKm2": {
+      "Marshall": 1105.858650238541,
+      "Wagoner": 1530.1354421415538,
+      "Seminole": 1658.8758071080563,
+      "Jackson": 2082.817635858456,
+      "Tillman": 2277.166452345443,
+      "Jefferson": 2004.943793745163,
+      "Choctaw": 2071.048625487755,
+      "Sequoyah": 1849.5792748477213,
+      "McCurtain": 4926.695434343758,
+      "McClain": 1502.8676935931553,
+      "Pottawatomie": 2055.1789157110416,
+      "Muskogee": 2175.7371681800114,
+      "Craig": 1975.035917177922,
+      "Kiowa": 2669.661583778938,
+      "Le Flore": 4165.415455387998,
+      "Osage": 5966.873283398477,
+      "Okmulgee": 1819.2108626663971,
+      "Pawnee": 1540.963101033262,
+      "Cleveland": 1444.896474440592,
+      "Latimer": 1888.7107141864346,
+      "Bryan": 2443.692111362411,
+      "Garvin": 2107.5683981264897,
+      "Tulsa": 1519.8304385602785,
+      "Hughes": 2110.2146608584303,
+      "Carter": 2159.6108518586443,
+      "Stephens": 2308.5915170719377,
+      "Murray": 1101.0098532634775,
+      "Harmon": 1395.5783639731078,
+      "Coal": 1350.7231286189956,
+      "Adair": 1495.2891087497592,
+      "Delaware": 2051.4051933728715,
+      "Ottawa": 1255.2060963877848,
+      "Oklahoma": 1860.7317439909286,
+      "Canadian": 2344.9908593227756,
+      "Caddo": 3341.3513019795137,
+      "Alfalfa": 2283.344552893994,
+      "Texas": 5306.461129834069,
+      "Washington": 1098.9880213750432,
+      "Love": 1378.0420030011667,
+      "Roger Mills": 2969.6697408846007,
+      "Logan": 1939.4713912222558,
+      "McIntosh": 1844.3696233749897,
+      "Okfuskee": 1628.4386411819169,
+      "Dewey": 2611.4853670238035,
+      "Kay": 2447.6689435915787,
+      "Cimarron": 4767.6124971652935,
+      "Pontotoc": 1878.3604462247526,
+      "Mayes": 1770.385395822071,
+      "Washita": 2612.65799337311,
+      "Rogers": 1843.1960483212208,
+      "Pushmataha": 3684.52165503958,
+      "Woodward": 3229.165477946736,
+      "Johnston": 1705.160296915847,
+      "Noble": 1923.1538956065897,
+      "Greer": 1666.9735900472751,
+      "Grady": 2861.712118758086,
+      "Grant": 2598.950610366163,
+      "Cherokee": 2009.827452755121,
+      "Harper": 2694.4137450333615,
+      "Beckham": 2340.9397744830794,
+      "Custer": 2595.3146447781915,
+      "Pittsburg": 3568.304482541858,
+      "Payne": 1805.8983659266278,
+      "Blaine": 2431.7123462231066,
+      "Atoka": 2563.681599867022,
+      "Woods": 3341.089515272609,
+      "Cotton": 1662.8643213072612,
+      "Lincoln": 2501.454069937555,
+      "Beaver": 4708.690121685292,
+      "Kingfisher": 2346.575457380576,
+      "Creek": 2511.038714529665,
+      "Major": 2481.2332760706117,
+      "Comanche": 2807.0831213092815,
+      "Ellis": 3190.038427946417,
+      "Haskell": 1619.8505147081962,
+      "Garfield": 2745.5844792525018,
+      "Nowata": 1504.2892822771296
+    },
+    "oldDayCountMismatches": [],
+    "distinctCountyCountTotals": 49,
+    "projectedAreaRepairs": [
+      {
+        "kind": "zcta",
+        "id": "71973",
+        "areaBeforeM2": 25.15429682411832,
+        "areaAfterM2": 25.154296804745353
+      },
+      {
+        "kind": "zcta",
+        "id": "79051",
+        "areaBeforeM2": 2780.643912180526,
+        "areaAfterM2": 2780.6439121418516
+      },
+      {
+        "kind": "zcta",
+        "id": "67005",
+        "areaBeforeM2": 252.0656989713397,
+        "areaAfterM2": 252.9338013998535
+      },
+      {
+        "kind": "zcta",
+        "id": "79034",
+        "areaBeforeM2": 2.8676187310409955,
+        "areaAfterM2": 2.867619341049289
+      },
+      {
+        "kind": "zcta",
+        "id": "71945",
+        "areaBeforeM2": 38.62793118941954,
+        "areaAfterM2": 38.62793121609443
+      },
+      {
+        "kind": "zcta",
+        "id": "75473",
+        "areaBeforeM2": 64.64519268496952,
+        "areaAfterM2": 64.64519268496952
+      },
+      {
+        "kind": "zcta",
+        "id": "75020",
+        "areaBeforeM2": 7.0847601893507886,
+        "areaAfterM2": 7.461948394554554
+      }
+    ],
+    "unusableSpatialPartitions": [
+      {
+        "kind": "zcta",
+        "id": "79034",
+        "reason": "Spatial pattern areas do not partition region: sum=1.00000014934, area=2.86761934105 m2"
+      }
+    ]
+  },
+  "rows": [
+    {
+      "county": "Oklahoma",
+      "recordedHailDays05In": 129,
+      "recordedHailDays15In": 21,
+      "qualifyingDaysCompleteYears": 19,
+      "meanCoveragePerQualifyingDayPercent": 1.310053015566061,
+      "areaWeightedExposureDaysPerYear": 0.062227518239387894,
+      "probabilities": {
+        "1": {
+          "central": 0.0609910373630085,
+          "lower95": 0.023410042278172786,
+          "upper95": 0.10262292429766377,
+          "interpretation": "Empirical annual footprint-year resampling; exploratory, not a validated property forecast"
+        },
+        "5": {
+          "central": 0.17235914388558435,
+          "lower95": 0.04865952053568186,
+          "upper95": 0.1883904259760132,
+          "interpretation": "Empirical annual footprint-year resampling; exploratory, not a validated property forecast"
+        },
+        "10": {
+          "central": 0.20858883039113824,
+          "lower95": 0.050070437260918976,
+          "upper95": 0.20858883039113824,
+          "interpretation": "Empirical annual footprint-year resampling; exploratory, not a validated property forecast"
+        }
+      },
+      "typicalHailSize": {
+        "id": "2",
+        "label": "1.50\u20131.99 in",
+        "areaExposureDayShare": 0.8354099606396167
+      },
+      "completeYears": [
+        2022,
+        2023,
+        2024,
+        2025
+      ]
+    },
+    {
+      "county": "Tulsa",
+      "recordedHailDays05In": 106,
+      "recordedHailDays15In": 10,
+      "qualifyingDaysCompleteYears": 10,
+      "meanCoveragePerQualifyingDayPercent": 1.9279196641809886,
+      "areaWeightedExposureDaysPerYear": 0.04819799160452471,
+      "probabilities": {
+        "1": {
+          "central": 0.04738307484904491,
+          "lower95": 0.005479546326669337,
+          "upper95": 0.12474150705839004,
+          "interpretation": "Empirical annual footprint-year resampling; exploratory, not a validated property forecast"
+        },
+        "5": {
+          "central": 0.13832635387802866,
+          "lower95": 0.010326902890641759,
+          "upper95": 0.1680529088070416,
+          "interpretation": "Empirical annual footprint-year resampling; exploratory, not a validated property forecast"
+        },
+        "10": {
+          "central": 0.16891806499490603,
+          "lower95": 0.010810993377908338,
+          "upper95": 0.1748781778919053,
+          "interpretation": "Empirical annual footprint-year resampling; exploratory, not a validated property forecast"
+        }
+      },
+      "typicalHailSize": {
+        "id": "2",
+        "label": "1.50\u20131.99 in",
+        "areaExposureDayShare": 0.8662559948027856
+      },
+      "completeYears": [
+        2022,
+        2023,
+        2024,
+        2025
+      ]
+    },
+    {
+      "county": "Cleveland",
+      "recordedHailDays05In": 119,
+      "recordedHailDays15In": 13,
+      "qualifyingDaysCompleteYears": 11,
+      "meanCoveragePerQualifyingDayPercent": 1.3717539660809166,
+      "areaWeightedExposureDaysPerYear": 0.03772323406722521,
+      "probabilities": {
+        "1": {
+          "central": 0.03600229861873521,
+          "lower95": 0.0072503164296064465,
+          "upper95": 0.06475428080786398,
+          "interpretation": "Empirical annual footprint-year resampling; exploratory, not a validated property forecast"
+        },
+        "5": {
+          "central": 0.10861898400347093,
+          "lower95": 0.013824202307537526,
+          "upper95": 0.12329098983221523,
+          "interpretation": "Empirical annual footprint-year resampling; exploratory, not a validated property forecast"
+        },
+        "10": {
+          "central": 0.13395865631757334,
+          "lower95": 0.014342812559935959,
+          "upper95": 0.1358283584794231,
+          "interpretation": "Empirical annual footprint-year resampling; exploratory, not a validated property forecast"
+        }
+      },
+      "typicalHailSize": {
+        "id": "2",
+        "label": "1.50\u20131.99 in",
+        "areaExposureDayShare": 0.9278585273481085
+      },
+      "completeYears": [
+        2022,
+        2023,
+        2024,
+        2025
+      ]
+    },
+    {
+      "county": "Murray",
+      "recordedHailDays05In": 151,
+      "recordedHailDays15In": 18,
+      "qualifyingDaysCompleteYears": 16,
+      "meanCoveragePerQualifyingDayPercent": 2.1579606972712724,
+      "areaWeightedExposureDaysPerYear": 0.0863184278908509,
+      "probabilities": {
+        "1": {
+          "central": 0.08585530173498522,
+          "lower95": 0.042811393695746346,
+          "upper95": 0.14768965351456997,
+          "interpretation": "Empirical annual footprint-year resampling; exploratory, not a validated property forecast"
+        },
+        "5": {
+          "central": 0.24750596510117107,
+          "lower95": 0.07620649577469758,
+          "upper95": 0.25227400018903984,
+          "interpretation": "Empirical annual footprint-year resampling; exploratory, not a validated property forecast"
+        },
+        "10": {
+          "central": 0.3010692503072874,
+          "lower95": 0.08302486890528112,
+          "upper95": 0.3010692503072874,
+          "interpretation": "Empirical annual footprint-year resampling; exploratory, not a validated property forecast"
+        }
+      },
+      "typicalHailSize": {
+        "id": "2",
+        "label": "1.50\u20131.99 in",
+        "areaExposureDayShare": 0.8577885172369459
+      },
+      "completeYears": [
+        2022,
+        2023,
+        2024,
+        2025
+      ]
+    },
+    {
+      "county": "Texas",
+      "recordedHailDays05In": 227,
+      "recordedHailDays15In": 56,
+      "qualifyingDaysCompleteYears": 47,
+      "meanCoveragePerQualifyingDayPercent": 1.0960387838205525,
+      "areaWeightedExposureDaysPerYear": 0.12878455709891493,
+      "probabilities": {
+        "1": {
+          "central": 0.12572756632654875,
+          "lower95": 0.09495260135577871,
+          "upper95": 0.14414567640458537,
+          "interpretation": "Empirical annual footprint-year resampling; exploratory, not a validated property forecast"
+        },
+        "5": {
+          "central": 0.3163496222783477,
+          "lower95": 0.17309287509972301,
+          "upper95": 0.3163496222783477,
+          "interpretation": "Empirical annual footprint-year resampling; exploratory, not a validated property forecast"
+        },
+        "10": {
+          "central": 0.3699647093419821,
+          "lower95": 0.1952583233095121,
+          "upper95": 0.3699647093419821,
+          "interpretation": "Empirical annual footprint-year resampling; exploratory, not a validated property forecast"
+        }
+      },
+      "typicalHailSize": {
+        "id": "2",
+        "label": "1.50\u20131.99 in",
+        "areaExposureDayShare": 0.7888932622524787
+      },
+      "completeYears": [
+        2022,
+        2023,
+        2024,
+        2025
+      ]
+    },
+    {
+      "county": "Cimarron",
+      "recordedHailDays05In": 173,
+      "recordedHailDays15In": 44,
+      "qualifyingDaysCompleteYears": 36,
+      "meanCoveragePerQualifyingDayPercent": 1.7599641121057326,
+      "areaWeightedExposureDaysPerYear": 0.15839677008951597,
+      "probabilities": {
+        "1": {
+          "central": 0.1488206166730658,
+          "lower95": 0.05400221029563294,
+          "upper95": 0.24363902305049867,
+          "interpretation": "Empirical annual footprint-year resampling; exploratory, not a validated property forecast"
+        },
+        "5": {
+          "central": 0.3717998651120861,
+          "lower95": 0.09559415787143621,
+          "upper95": 0.39084626813254614,
+          "interpretation": "Empirical annual footprint-year resampling; exploratory, not a validated property forecast"
+        },
+        "10": {
+          "central": 0.4364134469861292,
+          "lower95": 0.10507231693075669,
+          "upper95": 0.4364134469861292,
+          "interpretation": "Empirical annual footprint-year resampling; exploratory, not a validated property forecast"
+        }
+      },
+      "typicalHailSize": {
+        "id": "2",
+        "label": "1.50\u20131.99 in",
+        "areaExposureDayShare": 0.7276030003612332
+      },
+      "completeYears": [
+        2022,
+        2023,
+        2024,
+        2025
+      ]
+    },
+    {
+      "county": "Comanche",
+      "recordedHailDays05In": 154,
+      "recordedHailDays15In": 27,
+      "qualifyingDaysCompleteYears": 23,
+      "meanCoveragePerQualifyingDayPercent": 1.9085700610879293,
+      "areaWeightedExposureDaysPerYear": 0.10974277851255591,
+      "probabilities": {
+        "1": {
+          "central": 0.10829320369071989,
+          "lower95": 0.027143509345672466,
+          "upper95": 0.2124067628279886,
+          "interpretation": "Empirical annual footprint-year resampling; exploratory, not a validated property forecast"
+        },
+        "5": {
+          "central": 0.30603104469501463,
+          "lower95": 0.0486251295284497,
+          "upper95": 0.33904594215841,
+          "interpretation": "Empirical annual footprint-year resampling; exploratory, not a validated property forecast"
+        },
+        "10": {
+          "central": 0.37008638739250516,
+          "lower95": 0.05267491642400318,
+          "upper95": 0.37008638739250516,
+          "interpretation": "Empirical annual footprint-year resampling; exploratory, not a validated property forecast"
+        }
+      },
+      "typicalHailSize": {
+        "id": "2",
+        "label": "1.50\u20131.99 in",
+        "areaExposureDayShare": 0.6354909621879931
+      },
+      "completeYears": [
+        2022,
+        2023,
+        2024,
+        2025
+      ]
+    },
+    {
+      "county": "Garfield",
+      "recordedHailDays05In": 165,
+      "recordedHailDays15In": 29,
+      "qualifyingDaysCompleteYears": 27,
+      "meanCoveragePerQualifyingDayPercent": 0.6141118016661065,
+      "areaWeightedExposureDaysPerYear": 0.04145254661246218,
+      "probabilities": {
+        "1": {
+          "central": 0.04145254661246218,
+          "lower95": 0.012268963666051942,
+          "upper95": 0.07580009019580738,
+          "interpretation": "Empirical annual footprint-year resampling; exploratory, not a validated property forecast"
+        },
+        "5": {
+          "central": 0.12426937337918945,
+          "lower95": 0.025102140263076687,
+          "upper95": 0.14220404896920957,
+          "interpretation": "Empirical annual footprint-year resampling; exploratory, not a validated property forecast"
+        },
+        "10": {
+          "central": 0.152972552138683,
+          "lower95": 0.025877925677046887,
+          "upper95": 0.15731553428745948,
+          "interpretation": "Empirical annual footprint-year resampling; exploratory, not a validated property forecast"
+        }
+      },
+      "typicalHailSize": {
+        "id": "2",
+        "label": "1.50\u20131.99 in",
+        "areaExposureDayShare": 0.8669582757804362
+      },
+      "completeYears": [
+        2022,
+        2023,
+        2024,
+        2025
+      ]
+    },
+    {
+      "county": "McCurtain",
+      "recordedHailDays05In": 181,
+      "recordedHailDays15In": 27,
+      "qualifyingDaysCompleteYears": 24,
+      "meanCoveragePerQualifyingDayPercent": 0.6971534438705611,
+      "areaWeightedExposureDaysPerYear": 0.04182920663223366,
+      "probabilities": {
+        "1": {
+          "central": 0.04174250143424233,
+          "lower95": 0.020930591571353765,
+          "upper95": 0.05878663415243764,
+          "interpretation": "Empirical annual footprint-year resampling; exploratory, not a validated property forecast"
+        },
+        "5": {
+          "central": 0.12460946255654944,
+          "lower95": 0.04640510261086829,
+          "upper95": 0.13088635274556573,
+          "interpretation": "Empirical annual footprint-year resampling; exploratory, not a validated property forecast"
+        },
+        "10": {
+          "central": 0.15319808447125355,
+          "lower95": 0.047974011142533794,
+          "upper95": 0.15319808447125355,
+          "interpretation": "Empirical annual footprint-year resampling; exploratory, not a validated property forecast"
+        }
+      },
+      "typicalHailSize": {
+        "id": "2",
+        "label": "1.50\u20131.99 in",
+        "areaExposureDayShare": 0.7514349048354426
+      },
+      "completeYears": [
+        2022,
+        2023,
+        2024,
+        2025
+      ]
+    },
+    {
+      "county": "Canadian",
+      "recordedHailDays05In": 158,
+      "recordedHailDays15In": 21,
+      "qualifyingDaysCompleteYears": 19,
+      "meanCoveragePerQualifyingDayPercent": 1.1270687867199076,
+      "areaWeightedExposureDaysPerYear": 0.053535767369195617,
+      "probabilities": {
+        "1": {
+          "central": 0.05332139383559996,
+          "lower95": 0.01805305547432825,
+          "upper95": 0.08540450600453248,
+          "interpretation": "Empirical annual footprint-year resampling; exploratory, not a validated property forecast"
+        },
+        "5": {
+          "central": 0.15813768655223384,
+          "lower95": 0.05072291845482186,
+          "upper95": 0.175158230819117,
+          "interpretation": "Empirical annual footprint-year resampling; exploratory, not a validated property forecast"
+        },
+        "10": {
+          "central": 0.19403849502976778,
+          "lower95": 0.052200846454301154,
+          "upper95": 0.19667469395524997,
+          "interpretation": "Empirical annual footprint-year resampling; exploratory, not a validated property forecast"
+        }
+      },
+      "typicalHailSize": {
+        "id": "2",
+        "label": "1.50\u20131.99 in",
+        "areaExposureDayShare": 0.8918470897530101
+      },
+      "completeYears": [
+        2022,
+        2023,
+        2024,
+        2025
+      ]
+    }
+  ]
+}

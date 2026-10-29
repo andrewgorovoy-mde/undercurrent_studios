@@ -1,0 +1,14 @@
+import {hailCategories,type HazardCategory,type RoofProfile,type VulnerabilityModel} from './domain.ts';
+import {finite,integer,oneOf,probability} from './validation.ts';
+import {validateDamage} from './vulnerability.ts';
+export const annualToMultiYear=(annualProbability:number,years:number)=>{probability('Annual probability',annualProbability);finite('Years',years);return years===0?0:annualProbability===1?1:-Math.expm1(years*Math.log1p(-annualProbability))};
+export function poissonProbability(rate:number,years:number){finite('Annual event rate',rate);finite('Years',years);return -Math.expm1(-rate*years)}
+export function independentEventProbability(perEvent:number,count:number){probability('Per-event probability',perEvent);integer('Independent storm count',count);if(count===0)return 0;return perEvent===1?1:-Math.expm1(count*Math.log1p(-perEvent))}
+export function validateHazard(hazard:HazardCategory[]){if(!Array.isArray(hazard)||hazard.length===0)throw new TypeError('At least one hazard category is required.');const seen=new Set();for(const row of hazard){oneOf('Hail category',row.hail,hailCategories);finite('Annual event rate',row.annualRate);if(seen.has(row.hail))throw new RangeError('Duplicate hail category.');seen.add(row.hail)}}
+export function multiYearRisk(hazard:HazardCategory[],roof:RoofProfile,model:VulnerabilityModel,years:number,eventCount:number,paidGivenDamage:(hail:HazardCategory['hail'],outcome:'repair'|'replacement')=>number){
+ validateHazard(hazard);finite('Years',years);integer('Independent storm count',eventCount);
+ let exposureRate=0,damageRate=0,replacementRate=0,claimRate=0;
+ for(const event of hazard){const p=validateDamage(model.evaluate({...roof,hail:event.hail}));const repairPaid=probability('Paid claim chance given repair',paidGivenDamage(event.hail,'repair'));const replacementPaid=probability('Paid claim chance given replacement',paidGivenDamage(event.hail,'replacement'));exposureRate+=event.annualRate;damageRate+=event.annualRate*(p.repair+p.replacement);replacementRate+=event.annualRate*p.replacement;claimRate+=event.annualRate*(p.repair*repairPaid+p.replacement*replacementPaid)}
+ const perEvent=(rate:number)=>exposureRate===0?0:rate/exposureRate;
+ return {years,exposure:poissonProbability(exposureRate,years),damage:poissonProbability(damageRate,years),insuredClaim:poissonProbability(claimRate,years),replacement:poissonProbability(replacementRate,years),expectedEvents:exposureRate*years,rates:{exposure:exposureRate,damage:damageRate,insuredClaim:claimRate,replacement:replacementRate},givenEventCount:exposureRate===0&&eventCount>0?null:{exposure:eventCount>0?1:0,damage:independentEventProbability(perEvent(damageRate),eventCount),insuredClaim:independentEventProbability(perEvent(claimRate),eventCount),replacement:independentEventProbability(perEvent(replacementRate),eventCount)}};
+}

@@ -1,0 +1,39 @@
+{
+  "schemaVersion": 2,
+  "outputSha256": "abab10989260b5fb0376c035348911c98255d01f8a5de046bb0f8ec323521d42",
+  "generatedAt": "2026-10-28T13:45:22.939567+00:00",
+  "counties": 77,
+  "zctas": 696,
+  "coverage": {
+    "verifiedUtcFiles": 1905,
+    "requestedConvectiveDays": 1918,
+    "coveredConvectiveDays": 1903,
+    "missingConvectiveDates": [
+      "2020-10-01",
+      "2020-10-02",
+      "2020-10-03",
+      "2020-10-04",
+      "2020-10-05",
+      "2020-10-06",
+      "2020-10-07",
+      "2020-10-08",
+      "2020-10-09",
+      "2020-10-10",
+      "2020-10-11",
+      "2020-10-12",
+      "2020-10-13",
+      "2021-11-19",
+      "2021-11-20"
+    ],
+    "failedFiles": [],
+    "radarUptimeVerified": false
+  },
+  "provenance": {
+    "sourceManifestSha256": "a32f665e73c20330bfa8277055195ddd7760e31f1a5bfb586b779d73b448695a",
+    "rawFeatureCount": 3336494,
+    "positiveAreaIntersections": 246413,
+    "repairedPolygonCount": 0,
+    "pythonVersion": "3.12.14",
+    "spatialExposureMethod": "fixed-location-footprint-year-v1"
+  }
+}

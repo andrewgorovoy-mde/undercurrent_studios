@@ -1,0 +1,42 @@
+{
+  "verification": "Actual original downloaded NOAA records inspected before implementing parser",
+  "sampleUrl": "https://storage.googleapis.com/noaa-ncei-ipg/datasets/event-catalog/hail/mrms_hail_data_2020-10-14.geojson",
+  "topLevelKeys": [
+    "type",
+    "features"
+  ],
+  "geometryType": "Polygon",
+  "propertyExample": {
+    "date": "2020-10-14",
+    "convective_day": "2020-10-14",
+    "source": "MRMS",
+    "hour_utc": "2300",
+    "hail_size_range_in": "0.5-0.99",
+    "hail_min": 0.5,
+    "hail_max": 0.99
+  },
+  "binInventory": "verified-hail-bins.json",
+  "secondarySourceFile": "StormEvents_details-ftp_v1.0_d2025_c20260819.csv.gz",
+  "boundaries": [
+    {
+      "kind": "county",
+      "url": "https://www2.census.gov/geo/tiger/GENZ2024/shp/cb_2024_us_county_500k.zip",
+      "file": "cb_2024_us_county_500k.zip",
+      "sha256": "da4051717caec55c75e3748c3608c2a3dbde8d1ff401bbaf4f952e3c3fb63ef1",
+      "bytes": 11626066,
+      "cached": true
+    },
+    {
+      "kind": "zcta",
+      "url": "https://www2.census.gov/geo/tiger/GENZ2020/shp/cb_2020_us_zcta520_500k.zip",
+      "file": "cb_2020_us_zcta520_500k.zip",
+      "sha256": "c69a4ede8aebebfc7ed3a98a9075c6aaa1b75d514a129bc5c662fd806d2f3d17",
+      "bytes": 66655314,
+      "cached": true
+    }
+  ],
+  "notes": [
+    "Actual files use 3.0-3.99 rather than the finer split in one README.",
+    "4.0-10.0 is treated as an open-ended 4+ category, never an exact maximum."
+  ]
+}
