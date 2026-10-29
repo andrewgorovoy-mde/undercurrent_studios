@@ -1,0 +1,1410 @@
+<!doctype html><html lang="en"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/><meta name="theme-color" content="#fafaf6"/><meta name="description" content="Explore hail, roof resilience, insurance and recovery with a transparent educational prototype."/><title>Is Your Roof Ready?</title></head><body><div id="root"></div><script type="module" src="/src/main.tsx"></script></body></html>
+
+# Oklahoma roof prototype: calculation engine
+
+This is an exploratory model, not an Oklahoma quote, a hazard forecast, an engineering assessment, a coverage decision, or a grant eligibility determination. Reference date: October 27, 2026.
+
+All adjustable assumptions and initial inputs are centralized in `src/data/config.ts`. The UI clones that configuration into shared state; edits recalculate the pure models synchronously. Nothing is uploaded or saved across reloads. Invalid or missing numeric inputs produce an error and unavailable results, rather than retaining a previous estimate.
+
+## Data quality and sources
+
+- **Observed data:** supplemental NOAA Storm Events reports are loaded separately from radar-derived modeled footprints. An OID report provides context about participant premium savings, not an individual projection.
+- **Published modeled data:** verified NOAA MRMS-derived footprint histories are integrated for county/ZCTA area exposure. No published roof fragility is implemented yet. The engine accepts a `VulnerabilityModel` provider with its own source and quality metadata.
+- **Prototype assumptions:** the geometry factors, cost ranges, fragility tables, lookup scales, approval/frequency parameters and financial modeling conventions below.
+- **Demonstration data:** prefilled household and insurance values, invented annual hazard rates, and results derived from these assumptions. User edits are unverified scenario inputs.
+
+Sources are educational context only:
+
+1. [OID Strengthen Oklahoma Homes](https://www.oid.ok.gov/okready/): grant maximum and conditional program requirements. Grant cannot pay an insurance deductible. Eligibility and eligible work require actual program review.
+2. [OID December 8, 2025 participant report](https://www.oid.ok.gov/release_120825-1/): reports savings of **around $750 annually**. The exact **$749** default remains a requested prototype assumption; no individual discount is guaranteed.
+3. [OID Post-Disaster Claims Guide](https://www.oid.ok.gov/wp-content/uploads/2024/04/publication-post-disaster-claims-guide-1.pdf): RCV, ACV and claims concepts. This engine's explicit limit-ordering convention does not interpret actual policy wording.
+4. [Li, Porter and Goda (2024), Hail hazard modeling with uncertainty analysis and roof damage estimation of residential buildings in North America](https://media.cocorahs.org/docs/Journal_Disaster_Risk_Reduction_2024_CoCoRaHS_Hail.pdf): future fragility integration reference. No coefficients, calibrated probabilities, numerical performance claims or research findings from this paper are implemented.
+5. [IBHS technical documents](https://fortifiedhome.org/technical-documents/): FORTIFIED standard requirements. Designation is not a guarantee against damage; selected impact class and system efficacy in this prototype are separate assumptions.
+
+## 1. Roof area and replacement costs — `roofCost.ts`
+
+```
+roof area = total interior floor area / stories × slope factor × complexity factor
+conventional unit cost = materials × material cost factor
+                       + labor
+                       + optional removal
+                       + decking cost × affected decking fraction
+conventional cost = roof area × conventional unit cost
+FORTIFIED cost = conventional cost + roof area × additional FORTIFIED unit cost
+```
+
+Floor area is not roof area. The footprint approximation assumes roughly equal floor areas on each story; garages, overhangs, additions, waste and individual roof planes are not measured. Slope and complexity factors are adjustable and must be at least 1. Stories must be a positive integer. Fractional/unequal stories require a future geometry model.
+
+Initial slope is **1.2**. Complexity presets are simple **1**, moderate **1.15**, complex **1.35**, unknown **1.15**. Changing the preset updates the numeric complexity factor; a direct numeric edit overrides it. Complexity is applied once, through area.
+
+All unit costs below are invented editable **$/roof sq ft**, not national prices repackaged as Oklahoma quotes:
+
+| Cost | Low | Central | High |
+| --- | ---: | ---: | ---: |
+| Conventional materials | 3 | 4 | 5 |
+| Local labor | 2 | 3 | 4 |
+| Additional FORTIFIED work | 1 | 1.5 | 2.5 |
+| Removal | 0.5 | 1 | 1.5 |
+| Decking, per affected sq ft | 2 | 3 | 4 |
+
+Removal starts enabled; decking fraction starts at **0** and is editable from 0 to 1. Material factors, applied only to materials: standard asphalt **1**, impact-resistant asphalt **1.3**, metal **1.8**, tile **2.3**, other **1.3**, unknown **1.2**. They are configuration assumptions, not measured Oklahoma cost relativities.
+
+Low, central and high costs combine the corresponding endpoints. They are scenarios, not statistical confidence intervals. The central estimate feeds insurance, specific storm and expected financial comparisons. Vary unit costs to explore uncertainty. Additional permits, tax, evaluation fees, structural work, financing, temporary repairs, interior water loss and contents damage are not separately priced. The additional FORTIFIED cost is an editable placeholder rather than a construction specification.
+
+## 2. Insurance — `insurance.ts`
+
+Inputs explicitly include coverage (covered/excluded/unknown), decision (approved/denied/pending), approved share of physical loss, RCV/ACV/unknown basis, fixed or percent deductible, dwelling coverage, roof payment cap, roof depreciation and completed-repair status.
+
+```
+deductible = fixed dollars, OR percentage × dwelling coverage
+approved loss = physical loss × approved share
+  (only for explicitly covered, approved damage with known settlement basis)
+depreciation = approved loss × roof depreciation fraction
+payment cap = min(roof payment limit, dwelling coverage)
+initial payment = min(cap, max(0, approved loss − depreciation − deductible))
+final potential RCV = min(cap, max(0, approved loss − deductible))
+final potential ACV = initial payment
+recoverable depreciation = final potential payment − initial payment
+selected payment = final potential RCV if repair/recovery conditions are met,
+                   otherwise initial payment
+out-of-pocket = entire physical loss − selected payment
+```
+
+**Ordering convention:** coverage limits cap insurer payments **after** deductible/depreciation. A limit on eligible repair scope would require different policy logic. This is documented, tested scenario behavior, not a statement that every policy uses this order. A separate deductible and payment cap are applied to each independent storm; annual aggregate limits and multi-event deductible provisions are not modeled. The entire approved amount is assumed depreciable; material-versus-labor depreciation, endorsements, matching, multiple deductibles, disputes and additional coverages are not interpreted.
+
+RCV recovery is potential, contingent on required work and policy conditions. Recoverable depreciation is never added twice or assumed paid before the user selects completion. Out-of-pocket for an uncompleted RCV claim includes temporarily unrecovered depreciation and is a cash-flow illustration, not necessarily the final ultimate expense.
+
+Unknown coverage/basis, a pending decision, or exclusion/denial yields no assumed payment. This represents unresolved coverage conservatively, not a prediction of denial. Unknown roof-specific limitations use the dwelling cap in the chosen scenario, with a disclosure. Partial approval leaves the unapproved portion with the homeowner. Fresh conventional and FORTIFIED roofs use **0** depreciation as a prototype assumption. Betterment coverage for enhanced replacement is not automatically inferred: users must set the approved share and coverage terms appropriately.
+
+Default policy: RCV, **2%** wind/hail deductible on **$300,000** dwelling coverage, **35%** roof depreciation, **$3,000** annual premium, unknown roof limitations, and a **$15,000** roof cap if that option is selected. Switching to fixed deductible initializes **$2,500**. Scenario coverage starts **unknown**, approval **pending**, approved fraction **0.8**, and repairs **not completed**. These are all demonstration choices.
+
+## 3. Roof vulnerability — `vulnerability.ts` and `domain.ts`
+
+`VulnerabilityModel.evaluate(FragilityInput)` returns mutually exclusive probabilities of **no damage**, **repair**, and **full replacement**, plus the repair fraction of replacement cost. Outcomes must be finite, bounded in [0,1], and sum to 1. Inputs cover hail category, material, impact-resistance class, age, prior damage, roof condition and conventional/FORTIFIED system.
+
+The starter provider is identified as `editable-toy-fragility-v1`, quality **Prototype assumption**. It is a transparent table exercise. These are NOT invented engineering research coefficients or claims of measured performance.
+
+Each tuple below is `(damage probability, replacement conditional on damage, repair fraction of replacement cost)` before the editable lookup scales:
+
+| Material | Small hail | Large hail | Very large hail |
+| --- | --- | --- | --- |
+| Standard asphalt | (0.12, 0.05, 0.10) | (0.40, 0.25, 0.30) | (0.75, 0.60, 0.50) |
+| Impact-resistant asphalt | (0.08, 0.03, 0.08) | (0.28, 0.20, 0.25) | (0.60, 0.50, 0.45) |
+| Metal | (0.10, 0.04, 0.12) | (0.30, 0.20, 0.30) | (0.65, 0.50, 0.45) |
+| Tile | (0.10, 0.04, 0.10) | (0.35, 0.22, 0.30) | (0.70, 0.55, 0.50) |
+| Other / unknown | (0.12, 0.05, 0.10) | (0.40, 0.25, 0.30) | (0.75, 0.60, 0.50) |
+
+Hail categories are illustrative severity bins, not diameter thresholds or validated engineering definitions. The existing mild/moderate/severe slider selects small/large/veryLarge; the no-storm position has no physical damage. Annual hazard integration uses all categories regardless of that slider.
+
+Toy lookup scales for damage probability:
+
+- Impact: unknown/unrated **1**, class 1 **0.95**, class 2 **0.9**, class 3 **0.8**, class 4 **0.7**.
+- Age ≤5 years **0.8**, ≤15 **1**, ≤200 **1.2**; band boundaries and scales live in config.
+- Prior damage **1.15** if yes, otherwise **1**.
+- Condition: good **0.95**, fair **1**, poor **1.1**, unknown **1**.
+- FORTIFIED roof-system lookup **0.65**, conventional **1**.
+
+These multipliers are deliberately editable toy adjustments, not research-calibrated relationships. Combined damage probability is clamped to 1. Replacement probability = damage probability × replacement-given-damage; repair probability is the remainder of damage. Unknown impact class is not inferred from the material label, avoiding an automatic class certification.
+
+The new conventional strategy uses the chosen current material/impact class but age 0, no prior damage and good condition. The FORTIFIED strategy additionally uses the configured upgraded impact rating, initially **Class 4**. This is an installation scenario assumption, not a claim that every FORTIFIED roof has that rating. Material and impact effects may overlap in this toy model; a calibrated published provider must replace this construction rather than inherit arbitrary scales.
+
+Future integration: pass a published implementation to `compare(..., settings, provider)`, or directly to risk/finance functions. Preserve the paper's applicable roof types, outcome definitions, units, age domain and uncertainty. Any conversion from published hail diameters to this UI's categories requires explicit bin definitions and validation. The starter interface also permits optional hail diameter in millimeters for a later adapter; no diameter is inferred or used by the current tables.
+
+## 4. Multi-year hazard and risk — `risk.ts`
+
+Initial annual Poisson storm rates are small **0.12**, large **0.04**, veryLarge **0.01 events/year**. They are invented demonstration rates, identical for all counties and ZIPs. These experimental point rates are not the separately imported NOAA county/ZCTA histories. Supported ZIP inputs select ZCTA area histories, not a point hazard. Counts in categories are independent; each storm belongs to a single severity category, so severity rates must not count the same event twice.
+
+For each severity `k`, rate `λk`, conditional damage `dk`, replacement `rk` and positive-payment chance `ck`:
+
+```
+hail exposure(T) = 1 − exp(−T × sum λk)
+physical damage(T) = 1 − exp(−T × sum λk × dk)
+insured claim(T) = 1 − exp(−T × sum λk × ck)
+full replacement(T) = 1 − exp(−T × sum λk × rk)
+```
+
+These four probabilities answer different questions. “Insured claim” is explicitly defined in this UI as **positive insurer payment**, not claim filing alone. For each repair/replacement outcome, `ck` includes its physical probability, claim filing chance, approval chance, known coverage/basis and a payment exceeding zero after deductible and limits. Filing chance defaults to **0.9** and future approval chance to **0.8**, both editable assumptions. An unapproved or below-deductible loss can still be physical damage or require replacement.
+
+Future approval probability is separate from the selected storm's specific decision. Multi-year paid-claim and expected financial calculations assume repairs completed and conditional approval, then weight compensation by filing × future approval chances. Coverage/basis exclusions still apply; pending status for a single storm is not propagated as a permanent future denial.
+
+The exported Bernoulli helper computes `1 − (1 − p)^T` for an annual probability; it is not used interchangeably with a Poisson **rate**. For exactly `N` independent storms (default **3**), severity mix weights are `λk / sum λk`, and probability of at least one outcome is `1 − (1 − per-event probability)^N`. This conditional count exercise does not alter annual expected costs. If all rates are zero, a positive count has no defined severity mix and its result is marked unavailable. Zero events gives zero exposure and zero damage.
+
+**Limitations:** 1/5/10-year outputs assume stationary rates, independence, constant severity mix and a fixed initial roof profile. Small samples can make apparent rates highly uncertain; correlated storms, climate changes, changes in exposure and aging roofs can invalidate these assumptions. Hazard/provider uncertainty is not propagated into confidence bands. A fixed-profile probability of any replacement is not a forecast of repeated replacements.
+
+## 5. Financial comparison — `financial.ts`
+
+Three alternatives are modeled: keep current, replace conventionally now, or replace with FORTIFIED now.
+
+- Keep upfront: **$0**.
+- Conventional upfront: central conventional installation cost; no grant.
+- FORTIFIED upfront: central enhanced installation cost minus the eligible grant.
+- Conventional annual premium change: **$0** initially.
+- FORTIFIED annual premium change: **−$749** initially, editable; premiums floor at zero. A positive change is an increased expense.
+- Scheduled conventional replacement for the retained roof: **none** initially; user may select the start of years 1–10.
+
+Grant starts **$0** because eligibility, award approval and funding availability all default to **false/unknown**. Only if all are explicitly true:
+
+```
+grant = min(requested amount, program maximum, eligible installation cost)
+```
+
+Requested defaults to **$10,000**, program maximum **$10,000**, eligible share of installation **1**. The eligible-cost share is a hypothetical input, not program adjudication. A grant never pays the deductible, storm repairs or insurance shortfall, and it is subtracted only once from upfront work. No future grant after a storm is assumed.
+
+Expected event cost integrates repair/replacement probabilities and losses across **all severities**. For each branch, insurer compensation is capped by coverage/approval terms, weighted by filing and future approval chances, and subtracted from physical loss. Premiums and scheduled work are separate expenses:
+
+```
+expected horizon cost = upfront after grant + premiums
+                      + expected physical storm loss − expected insurer compensation
+                      + expected still-needed scheduled replacement
+```
+
+Insurance compensation is never positive investment income. Avoided damage is not credited again as an extra cash benefit. Low/central/high replacement inputs are not investment-return estimates.
+
+### Avoiding duplicate scheduled replacement
+
+The retained roof has an old-roof state and a renewed conventional state. A full replacement after a storm moves it to the renewed state even when uninsured; this assumes the homeowner completes the physical replacement. Replacement is a thinned Poisson event with the old profile's fixed rate `r`. The probability still in the old state after time `t` is `exp(−rt)`.
+
+For each year, expected time in the old state is `old share × (1 − exp(−r))/r`, or the full old share if `r=0`. Remaining time uses new conventional costs, vulnerability, zero depreciation and the configured conventional premium. This integrates within-year transitions rather than charging old-roof losses for the entire year after renewal.
+
+At the start of the scheduled year, scheduled expense is `old share × conventional installation cost`; this replaces only roofs not already storm-replaced. Old share is then zero. New strategies are already renewed and are never charged the retained roof's schedule. After renewal, repairs/replacements restore the same stationary new-roof profile. Continuous aging and repeated end-of-life schedules are not simulated.
+
+No inflation, discounting, residual roof value, financing, home sale, maintenance, tax, appraisal changes, claim-driven repricing or monetized disruption is included. This is an undiscounted homeowner cash-expense comparison, not a lifecycle net-present-value model.
+
+## Single hypothetical storm versus expected cost
+
+The illustration uses a shared deterministic outcome quantile, initially **0.15**, for the selected hail category. Full replacement occupies `[0,pReplacement)`, repair the next interval, and no damage the remainder. A quantile is a scenario selector, not an observed storm or precision damage forecast. Selecting no storm forces all three physical losses to zero. Repairs cost the selected table fraction of each strategy's central full replacement cost; full replacement costs that strategy's full amount.
+
+Specific-storm claims respect the user-selected coverage, approval, approved fraction and repair completion. Changing the storm slider or quantile changes this scenario, not the distribution-integrated horizon costs. SVG damage marks are a visual convention based on the resulting loss fraction, not a validated count or location of impacts. Recovery remains qualitative; no days saved or disruption costs are invented.
+
+## Validation, defaults and reproducibility
+
+Home defaults: **2,000** interior sq ft, **1** story, **12** roof years, standard asphalt, moderate complexity, no prior damage, unknown condition and impact class, and no chosen location. Unknown age is stored as −1 and uses **12**; unknown stories uses **1**; unknown prior damage assumes no recorded prior damage. Other missing required numeric values are rejected rather than imputed.
+
+Functions reject NaN/infinities, negative dollars/rates, probabilities outside [0,1], incomplete/reversed ranges, invalid integer counts, unsupported input categories and invalid provider outcomes. UI display formatting uses an em dash for unavailable values. Invalid edits retain the controls so the user can correct them.
+
+Vitest tests include fixed/percentage deductible bases, ACV/RCV and recovery, depreciation, below-deductible losses, limits, explicit coverage/approval, grant caps/conditions, geometry and optional work, annual/Poisson/count probabilities, severity mixtures, pluggable providers, loss/payment accounting, scheduled-replacement survival weighting, premium floors, live composition and invalid/missing inputs. `pnpm test` runs all tests; `pnpm build` type-checks production TypeScript and builds the Vite bundle.
+
+## Historical exposure integration
+
+The historical exposure section now uses a verified local NOAA/Census artifact. See `docs/HAIL_DATA.md` for its separate statistical and geographic methods, source inventory, schema verification, exact coverage gaps and reproducible commands. `src/models/history.ts` computes the area-exposure horizon probabilities and bounds. The existing cost/insurance/fragility/financial calculation engine and scenario settings are unchanged by this integration.
+
+County/ZCTA historical rates describe hail somewhere within a region and must not be substituted for a roof-point rate in this model. The UI labels the conditional roof-damage / insured-claim / replacement and expected financial calculations **experimental** and retains their manually assumed point-hazard settings. Historical MRMS footprints remain modeled estimates, not confirmed ground hail size measurements. Radar uptime is unverified and incomplete files are never counted as zero storms. The current annual area-rate denominator uses 2022–2025, excluding partial 2020 and gapped 2021.
+
+## Exposure metric correction: v2
+
+The published hail exposure percentages now use a single **1.5-inch-or-larger proxy**, exact daily union coverage and annual hit patterns at fixed geographic locations before area averaging. County-anywhere day counts are retained as historical audit information but no longer generate a Poisson probability. The descriptive exposed-days/location/year rate is area-adjusted, and the 1/5/10-year probabilities use whole-calendar-year resampling, not `1 − exp(−county day rate × years)`.
+
+Typical modeled hail size is the unique modal qualifying bin by exclusive geographic area-days, with the largest bin counted once at a location/day. Main-interface sampling bounds, event counts and long methodology text have moved into one disclosure. The actual data support different estimates by county and ZCTA; no scaling correction is applied.
+
+There is no verified residential-location weighting. Estimates are area-weighted, not representative of a typical home or a specified address. Four complete years (2022–2025) do not establish reliable long-range forecasts. Resampling cannot introduce unseen footprint patterns; estimates can understate future exposure outside the short observed support. No qualifying observations or unusable geometry yields null, not zero risk. `docs/HAIL_SPATIAL_AUDIT.md` is the authoritative correction audit. The financial and insurance model implementations are unchanged.
+
+{
+  "name": "is-your-roof-ready",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite --host 127.0.0.1",
+    "build": "tsc --noEmit && vite build",
+    "preview": "vite preview --host 127.0.0.1",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:data": "python -m unittest discover -s scripts/hail -p \"test_*.py\" -v",
+    "data:validate": "python scripts/hail/validate_output.py"
+  },
+  "dependencies": {
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0"
+  },
+  "devDependencies": {
+    "@types/react": "^19.0.0",
+    "@types/react-dom": "^19.0.0",
+    "typescript": "^5.7.0",
+    "vite": "^6.0.0",
+    "vitest": "^3.2.0"
+  },
+  "packageManager": "pnpm@11.25.0"
+}
+
+lockfileVersion: '9.0'
+
+settings:
+  autoInstallPeers: true
+  excludeLinksFromLockfile: false
+
+importers:
+
+  .:
+    dependencies:
+      react:
+        specifier: ^19.0.0
+        version: 19.3.1
+      react-dom:
+        specifier: ^19.0.0
+        version: 19.3.1(react@19.3.1)
+    devDependencies:
+      '@types/react':
+        specifier: ^19.0.0
+        version: 19.3.0
+      '@types/react-dom':
+        specifier: ^19.0.0
+        version: 19.3.0(@types/react@19.3.0)
+      typescript:
+        specifier: ^5.7.0
+        version: 5.9.3
+      vite:
+        specifier: ^6.0.0
+        version: 6.4.5
+      vitest:
+        specifier: ^3.2.0
+        version: 3.2.7
+
+packages:
+
+  '@esbuild/aix-ppc64@0.25.12':
+    resolution: {integrity: sha512-Hhmwd6CInZ3dwpuGTF8fJG6yoWmsToE+vYgD4nytZVxcu1ulHpUQRAB1UJ8+N1Am3Mz4+xOByoQoSZf4D+CpkA==}
+    engines: {node: '>=18'}
+    cpu: [ppc64]
+    os: [aix]
+
+  '@esbuild/android-arm64@0.25.12':
+    resolution: {integrity: sha512-6AAmLG7zwD1Z159jCKPvAxZd4y/VTO0VkprYy+3N2FtJ8+BQWFXU+OxARIwA46c5tdD9SsKGZ/1ocqBS/gAKHg==}
+    engines: {node: '>=18'}
+    cpu: [arm64]
+    os: [android]
+
+  '@esbuild/android-arm@0.25.12':
+    resolution: {integrity: sha512-VJ+sKvNA/GE7Ccacc9Cha7bpS8nyzVv0jdVgwNDaR4gDMC/2TTRc33Ip8qrNYUcpkOHUT5OZ0bUcNNVZQ9RLlg==}
+    engines: {node: '>=18'}
+    cpu: [arm]
+    os: [android]
+
+  '@esbuild/android-x64@0.25.12':
+    resolution: {integrity: sha512-5jbb+2hhDHx5phYR2By8GTWEzn6I9UqR11Kwf22iKbNpYrsmRB18aX/9ivc5cabcUiAT/wM+YIZ6SG9QO6a8kg==}
+    engines: {node: '>=18'}
+    cpu: [x64]
+    os: [android]
+
+  '@esbuild/darwin-arm64@0.25.12':
+    resolution: {integrity: sha512-N3zl+lxHCifgIlcMUP5016ESkeQjLj/959RxxNYIthIg+CQHInujFuXeWbWMgnTo4cp5XVHqFPmpyu9J65C1Yg==}
+    engines: {node: '>=18'}
+    cpu: [arm64]
+    os: [darwin]
+
+  '@esbuild/darwin-x64@0.25.12':
+    resolution: {integrity: sha512-HQ9ka4Kx21qHXwtlTUVbKJOAnmG1ipXhdWTmNXiPzPfWKpXqASVcWdnf2bnL73wgjNrFXAa3yYvBSd9pzfEIpA==}
+    engines: {node: '>=18'}
+    cpu: [x64]
+    os: [darwin]
+
+  '@esbuild/freebsd-arm64@0.25.12':
+    resolution: {integrity: sha512-gA0Bx759+7Jve03K1S0vkOu5Lg/85dou3EseOGUes8flVOGxbhDDh/iZaoek11Y8mtyKPGF3vP8XhnkDEAmzeg==}
+    engines: {node: '>=18'}
+    cpu: [arm64]
+    os: [freebsd]
+
+  '@esbuild/freebsd-x64@0.25.12':
+    resolution: {integrity: sha512-TGbO26Yw2xsHzxtbVFGEXBFH0FRAP7gtcPE7P5yP7wGy7cXK2oO7RyOhL5NLiqTlBh47XhmIUXuGciXEqYFfBQ==}
+    engines: {node: '>=18'}
+    cpu: [x64]
+    os: [freebsd]
+
+  '@esbuild/linux-arm64@0.25.12':
+    resolution: {integrity: sha512-8bwX7a8FghIgrupcxb4aUmYDLp8pX06rGh5HqDT7bB+8Rdells6mHvrFHHW2JAOPZUbnjUpKTLg6ECyzvas2AQ==}
+    engines: {node: '>=18'}
+    cpu: [arm64]
+    os: [linux]
+
+  '@esbuild/linux-arm@0.25.12':
+    resolution: {integrity: sha512-lPDGyC1JPDou8kGcywY0YILzWlhhnRjdof3UlcoqYmS9El818LLfJJc3PXXgZHrHCAKs/Z2SeZtDJr5MrkxtOw==}
+    engines: {node: '>=18'}
+    cpu: [arm]
+    os: [linux]
+
+  '@esbuild/linux-ia32@0.25.12':
+    resolution: {integrity: sha512-0y9KrdVnbMM2/vG8KfU0byhUN+EFCny9+8g202gYqSSVMonbsCfLjUO+rCci7pM0WBEtz+oK/PIwHkzxkyharA==}
+    engines: {node: '>=18'}
+    cpu: [ia32]
+    os: [linux]
+
+  '@esbuild/linux-loong64@0.25.12':
+    resolution: {integrity: sha512-h///Lr5a9rib/v1GGqXVGzjL4TMvVTv+s1DPoxQdz7l/AYv6LDSxdIwzxkrPW438oUXiDtwM10o9PmwS/6Z0Ng==}
+    engines: {node: '>=18'}
+    cpu: [loong64]
+    os: [linux]
+
+  '@esbuild/linux-mips64el@0.25.12':
+    resolution: {integrity: sha512-iyRrM1Pzy9GFMDLsXn1iHUm18nhKnNMWscjmp4+hpafcZjrr2WbT//d20xaGljXDBYHqRcl8HnxbX6uaA/eGVw==}
+    engines: {node: '>=18'}
+    cpu: [mips64el]
+    os: [linux]
+
+  '@esbuild/linux-ppc64@0.25.12':
+    resolution: {integrity: sha512-9meM/lRXxMi5PSUqEXRCtVjEZBGwB7P/D4yT8UG/mwIdze2aV4Vo6U5gD3+RsoHXKkHCfSxZKzmDssVlRj1QQA==}
+    engines: {node: '>=18'}
+    cpu: [ppc64]
+    os: [linux]
+
+  '@esbuild/linux-riscv64@0.25.12':
+    resolution: {integrity: sha512-Zr7KR4hgKUpWAwb1f3o5ygT04MzqVrGEGXGLnj15YQDJErYu/BGg+wmFlIDOdJp0PmB0lLvxFIOXZgFRrdjR0w==}
+    engines: {node: '>=18'}
+    cpu: [riscv64]
+    os: [linux]
+
+  '@esbuild/linux-s390x@0.25.12':
+    resolution: {integrity: sha512-MsKncOcgTNvdtiISc/jZs/Zf8d0cl/t3gYWX8J9ubBnVOwlk65UIEEvgBORTiljloIWnBzLs4qhzPkJcitIzIg==}
+    engines: {node: '>=18'}
+    cpu: [s390x]
+    os: [linux]
+
+  '@esbuild/linux-x64@0.25.12':
+    resolution: {integrity: sha512-uqZMTLr/zR/ed4jIGnwSLkaHmPjOjJvnm6TVVitAa08SLS9Z0VM8wIRx7gWbJB5/J54YuIMInDquWyYvQLZkgw==}
+    engines: {node: '>=18'}
+    cpu: [x64]
+    os: [linux]
+
+  '@esbuild/netbsd-arm64@0.25.12':
+    resolution: {integrity: sha512-xXwcTq4GhRM7J9A8Gv5boanHhRa/Q9KLVmcyXHCTaM4wKfIpWkdXiMog/KsnxzJ0A1+nD+zoecuzqPmCRyBGjg==}
+    engines: {node: '>=18'}
+    cpu: [arm64]
+    os: [netbsd]
+
+  '@esbuild/netbsd-x64@0.25.12':
+    resolution: {integrity: sha512-Ld5pTlzPy3YwGec4OuHh1aCVCRvOXdH8DgRjfDy/oumVovmuSzWfnSJg+VtakB9Cm0gxNO9BzWkj6mtO1FMXkQ==}
+    engines: {node: '>=18'}
+    cpu: [x64]
+    os: [netbsd]
+
+  '@esbuild/openbsd-arm64@0.25.12':
+    resolution: {integrity: sha512-fF96T6KsBo/pkQI950FARU9apGNTSlZGsv1jZBAlcLL1MLjLNIWPBkj5NlSz8aAzYKg+eNqknrUJ24QBybeR5A==}
+    engines: {node: '>=18'}
+    cpu: [arm64]
+    os: [openbsd]
+
+  '@esbuild/openbsd-x64@0.25.12':
+    resolution: {integrity: sha512-MZyXUkZHjQxUvzK7rN8DJ3SRmrVrke8ZyRusHlP+kuwqTcfWLyqMOE3sScPPyeIXN/mDJIfGXvcMqCgYKekoQw==}
+    engines: {node: '>=18'}
+    cpu: [x64]
+    os: [openbsd]
+
+  '@esbuild/openharmony-arm64@0.25.12':
+    resolution: {integrity: sha512-rm0YWsqUSRrjncSXGA7Zv78Nbnw4XL6/dzr20cyrQf7ZmRcsovpcRBdhD43Nuk3y7XIoW2OxMVvwuRvk9XdASg==}
+    engines: {node: '>=18'}
+    cpu: [arm64]
+    os: [openharmony]
+
+  '@esbuild/sunos-x64@0.25.12':
+    resolution: {integrity: sha512-3wGSCDyuTHQUzt0nV7bocDy72r2lI33QL3gkDNGkod22EsYl04sMf0qLb8luNKTOmgF/eDEDP5BFNwoBKH441w==}
+    engines: {node: '>=18'}
+    cpu: [x64]
+    os: [sunos]
+
+  '@esbuild/win32-arm64@0.25.12':
+    resolution: {integrity: sha512-rMmLrur64A7+DKlnSuwqUdRKyd3UE7oPJZmnljqEptesKM8wx9J8gx5u0+9Pq0fQQW8vqeKebwNXdfOyP+8Bsg==}
+    engines: {node: '>=18'}
+    cpu: [arm64]
+    os: [win32]
+
+  '@esbuild/win32-ia32@0.25.12':
+    resolution: {integrity: sha512-HkqnmmBoCbCwxUKKNPBixiWDGCpQGVsrQfJoVGYLPT41XWF8lHuE5N6WhVia2n4o5QK5M4tYr21827fNhi4byQ==}
+    engines: {node: '>=18'}
+    cpu: [ia32]
+    os: [win32]
+
+  '@esbuild/win32-x64@0.25.12':
+    resolution: {integrity: sha512-alJC0uCZpTFrSL0CCDjcgleBXPnCrEAhTBILpeAp7M/OFgoqtAetfBzX0xM00MUsVVPpVjlPuMbREqnZCXaTnA==}
+    engines: {node: '>=18'}
+    cpu: [x64]
+    os: [win32]
+
+  '@jridgewell/sourcemap-codec@1.6.0':
+    resolution: {integrity: sha512-T7jf+5zgsZHwNJ4lvQ7/aezbyk0nNX+zJVWpmHA7VYsEx7a7qr5Rg5IbtJFqkgze5Y2sruq1RUY8Q837Od7iFw==}
+
+  '@napi-rs/lzma-linux-x64-gnu@1.5.1':
+    resolution: {integrity: sha512-oTXEIha4SsuXdTA4Iyskj0kpdx2yVXdhd75c2v3xGrHFfVMsbhTPZU/nMPL4sWKo4pBHm3aucLaqGlF696dTyQ==}
+    engines: {node: ^22.20 || ^24.12 || >=25}
+    cpu: [x64]
+    os: [linux]
+    libc: [glibc]
+
+  '@rollup/rollup-android-arm-eabi@4.65.1':
+    resolution: {integrity: sha512-5coxNSjqOI2J3NkVhlp3u+zGcyjnowQFsU9sg7MMz4UPXY4Dv63kFGLt7ConXz9CNq2i0yuOJZAF/2RMrgI2OA==}
+    cpu: [arm]
+    os: [android]
+
+  '@rollup/rollup-android-arm64@4.65.1':
+    resolution: {integrity: sha512-K0HFf6XMB3IYs+jDZ1/RRhZaVOwxNXrl0n4MDEyGDjuK7+B6K/nDJp8DCBitO3S1sK/fzNxAf9QZAny4AIUPtg==}
+    cpu: [arm64]
+    os: [android]
+
+  '@rollup/rollup-darwin-arm64@4.65.1':
+    resolution: {integrity: sha512-zkZrXYwNlIcSUmcwY2DpsaDHr0XjVUeQHCuSunG3eQD7/5Wn/DvI7OMUE8NRRweK87yG8ebJ1xGOzmwpMsbZQA==}
+    cpu: [arm64]
+    os: [darwin]
+
+  '@rollup/rollup-darwin-x64@4.65.1':
+    resolution: {integrity: sha512-Zaed+R3cpkkA3aiNd7NO0GV5KFh/LVf8j6bGcoRdpoXkSm/mWH8M0oX2/3u/nyGcx/bHEovD9CzX+w9/gcpI4A==}
+    cpu: [x64]
+    os: [darwin]
+
+  '@rollup/rollup-freebsd-arm64@4.65.1':
+    resolution: {integrity: sha512-h12p3WJWhyJ9kir0zqAPr0rKNmBzOWIjoaOMT9OULs9KZQZCeOMKd+mGSvERjd9VxJYShd3zIxtrVxkYz6BEVA==}
+    cpu: [arm64]
+    os: [freebsd]
+
+  '@rollup/rollup-freebsd-x64@4.65.1':
+    resolution: {integrity: sha512-yRBwh/5imKY4DydDulVtrjy8Jf7h7NQJUqZbgmZ3zFsCD9QqlnWvZ7RtEF+ecO1b+IukKjXlu5Bb9fehV3tIbg==}
+    cpu: [x64]
+    os: [freebsd]
+
+  '@rollup/rollup-linux-arm-gnueabihf@4.65.1':
+    resolution: {integrity: sha512-1XuPiWYYaLE1UDOqhbKVOfsqxvfmFS/lYPSk92U1hEX1qRfSYH0hNeAlbxFIgjp4d6+YQmL95EPRgdvjbZEddA==}
+    cpu: [arm]
+    os: [linux]
+    libc: [glibc]
+
+  '@rollup/rollup-linux-arm-musleabihf@4.65.1':
+    resolution: {integrity: sha512-Y3C5e55Yrf6p2r5rBcc4P9hFWVNi6oqWy/53I/AyCJJGlp3KRSpTP8eoUmVntchTbEnhgBgAgLO9flj9AvOdUw==}
+    cpu: [arm]
+    os: [linux]
+    libc: [musl]
+
+  '@rollup/rollup-linux-arm64-gnu@4.65.1':
+    resolution: {integrity: sha512-Itj6coSswkYPIcVLczObXmwdplHNQQxyfnK1ppBg4czDaX8RiEzLKqU7EMc64BiBuiDZEUS+M93ktM18rv5llw==}
+    cpu: [arm64]
+    os: [linux]
+    libc: [glibc]
+
+  '@rollup/rollup-linux-arm64-musl@4.65.1':
+    resolution: {integrity: sha512-KeO8jTEqdrnhvcahufbimyMoI44vedRUp1bVz2QUnRX2vDm/hxzCPt5F8fERVD5fsHyTW/vXmCElT054VOSVOA==}
+    cpu: [arm64]
+    os: [linux]
+    libc: [musl]
+
+  '@rollup/rollup-linux-loong64-gnu@4.65.1':
+    resolution: {integrity: sha512-dDOz5VZZ+ZGnglpmET6VJefamWXFsgaVtuhSClf2/URZBp048jprD6z1hddsIMN6n1w+oUzGZEBp9u6Mlszsfg==}
+    cpu: [loong64]
+    os: [linux]
+    libc: [glibc]
+
+  '@rollup/rollup-linux-loong64-musl@4.65.1':
+    resolution: {integrity: sha512-JbfRKz8nJCuo8gn1Dqx8lQWEHw4qhZ3uRaHphw5vrSjnSptJTKTRC/bLKHh8QQMsEnhL4uq+bdg3tkiXbJ2q/A==}
+    cpu: [loong64]
+    os: [linux]
+    libc: [musl]
+
+  '@rollup/rollup-linux-ppc64-gnu@4.65.1':
+    resolution: {integrity: sha512-3oQpe1q0emSeCAssVHMQdOz5fz3PBH5my/Fr0ZekV2UMNL4ZiRa1ciikYlGQXyDkeqseYYv1InwOY8YPqY7RIQ==}
+    cpu: [ppc64]
+    os: [linux]
+    libc: [glibc]
+
+  '@rollup/rollup-linux-ppc64-musl@4.65.1':
+    resolution: {integrity: sha512-nNV3HHi23o1LtpGGwH+Bav4hqnc4+klQtC96tSvCfvql8bLlNFTnTFiGl/jai2nve3eEr/vT2ocuyf+h+eMnYQ==}
+    cpu: [ppc64]
+    os: [linux]
+    libc: [musl]
+
+  '@rollup/rollup-linux-riscv64-gnu@4.65.1':
+    resolution: {integrity: sha512-b5zab0FryBxuocuDeqOsYGAg2EzjKw4mKA6LjQXCyewXjGv/BXqACBsY2cO45xM4hV2weYtdjGThP2VB2ByAYg==}
+    cpu: [riscv64]
+    os: [linux]
+    libc: [glibc]
+
+  '@rollup/rollup-linux-riscv64-musl@4.65.1':
+    resolution: {integrity: sha512-Rh08xZakiUxKNgI3hbgH9mivlx478lSqckS9s+Oc3/TX1VrAH3W8z/5wpJXR/v5VjqcJ/jJNVBg64PU1+iQsTQ==}
+    cpu: [riscv64]
+    os: [linux]
+    libc: [musl]
+
+  '@rollup/rollup-linux-s390x-gnu@4.65.1':
+    resolution: {integrity: sha512-qDgtS6juN3/k97y4kcD6XLFpXEo4f6CnG8lTOGYwlhrUYTrMyhN0WHdZCPAW5rqS0MqQG7qI7dxnjugt6QB39Q==}
+    cpu: [s390x]
+    os: [linux]
+    libc: [glibc]
+
+  '@rollup/rollup-linux-x64-gnu@4.65.1':
+    resolution: {integrity: sha512-44IKzBPqXXVm0kt1O+F5eW4juR5FyIxGNlFkpP8qwIDzucBsjM1HCbdYUQrQw8rU/g6HRl/tfBm0+Qq4H4Ro3w==}
+    cpu: [x64]
+    os: [linux]
+    libc: [glibc]
+
+  '@rollup/rollup-linux-x64-musl@4.65.1':
+    resolution: {integrity: sha512-tvYWZ/h2PCHs558Xu7B6LptuRCV8lXV2xI75ONMcldII1m2zlFwuI4BJZi9M6rSMkYqcPLLtPUPrjyqfbzLOdg==}
+    cpu: [x64]
+    os: [linux]
+    libc: [musl]
+
+  '@rollup/rollup-openbsd-x64@4.65.1':
+    resolution: {integrity: sha512-gdyeucgZCnei3pXwadKVTEAOgRx0B+c847DUPR/PdOMmp3olhfkYo6r0J4PzRFZB5ZICZQTxntyvgmWH5xT7rg==}
+    cpu: [x64]
+    os: [openbsd]
+
+  '@rollup/rollup-openharmony-arm64@4.65.1':
+    resolution: {integrity: sha512-Wf/NEKdn2SAL4Nvt8HyDtdkseWTwiLbZEOoNYnEaHkbso0B9eHO42vKnZh+OYsn+IMhAMcWcuIwPlBOgOXsUzg==}
+    cpu: [arm64]
+    os: [openharmony]
+
+  '@rollup/rollup-win32-arm64-msvc@4.65.1':
+    resolution: {integrity: sha512-x9VSsDmsMsEWy4cr/mFeaEsXnVJ6Kc4NCAU/lCnwml3s7LQbZoa9+/qwc9etWHbuuDT5mYxdyyKUwo76njtjZw==}
+    cpu: [arm64]
+    os: [win32]
+
+  '@rollup/rollup-win32-ia32-msvc@4.65.1':
+    resolution: {integrity: sha512-RIDbiVvvLkN45mOFpbo6eYMgnuiBEB62BGR/0s4QJgGg2AvVxucDDNn67kpAcUoYyfmY8iX8/RifMcmxmmnejA==}
+    cpu: [ia32]
+    os: [win32]
+
+  '@rollup/rollup-win32-x64-gnu@4.65.1':
+    resolution: {integrity: sha512-+KN8HIr88vN59JNxlrM2fMimzY43Y0lQB7+0xdVsFbvFCAA74CLKCdfzIHzzvndJryBc94Pm+MvwtukKjaS2ug==}
+    cpu: [x64]
+    os: [win32]
+
+  '@rollup/rollup-win32-x64-msvc@4.65.1':
+    resolution: {integrity: sha512-+Y1Sd49cSDq60UOl8/U2HI0ebUvnSl/hDhMHQn+ouw17yb8fYwMWIazzJ4JFpSkjPE7sj5NTNSX9IoyEqcFfyQ==}
+    cpu: [x64]
+    os: [win32]
+
+  '@types/chai@5.2.3':
+    resolution: {integrity: sha512-Mw558oeA9fFbv65/y4mHtXDs9bPnFMZAL/jxdPFUpOHHIXX91mcgEHbS5Lahr+pwZFR8A7GQleRWeI6cGFC2UA==}
+
+  '@types/deep-eql@4.0.2':
+    resolution: {integrity: sha512-c9h9dVVMigMPc4bwTvC5dxqtqJZwQPePsWjPlpSOnojbor6pGqdk541lfA7AqFQr5pB1BRdq0juY9db81BwyFw==}
+
+  '@types/estree@1.0.9':
+    resolution: {integrity: sha512-GhdPgy1el4/ImP05X05Uw4cw2/M93BCUmnEvWZNStlCzEKME4Fkk+YpoA5OiHNQmoS7Cafb8Xa3Pya8m1Qrzeg==}
+
+  '@types/react-dom@19.3.0':
+    resolution: {integrity: sha512-ZI7bU42mZXXKHn/qNLEw2IrbiINU7X5+vfgdixBHkCNpYWXjKgfQ/P+uyGb5CjOLB9UcnTeg3rylQtV2hym44Q==}
+    peerDependencies:
+      '@types/react': ^19.3.0
+
+  '@types/react@19.3.0':
+    resolution: {integrity: sha512-N0rFCuH9YoxG9/m61l9MfpJKfmLOVU0em7ipIz6TRgSSkvReLB9vL85GB+yr8Bs5leqpvg96JSwF4ZS1s4viQg==}
+
+  '@vitest/expect@3.2.7':
+    resolution: {integrity: sha512-E8eBXaKibuvH2pSZErOjdVb5vF4PbKYcrnluBTYxEk1l/VhhwZg1kZQsdtjq+CsF5CFydf2Rdkz7jDHKSisi3w==}
+
+  '@vitest/mocker@3.2.7':
+    resolution: {integrity: sha512-Trr0hYO9CM3Wj6ksWHRhK9IZpIY6wTMO5u/MqXurMxT57sWBaOPEtP3Oq60ihZuh5JsiagKfz95OcxdEP6dBrA==}
+    peerDependencies:
+      msw: ^2.4.9
+      vite: ^5.0.0 || ^6.0.0 || ^7.0.0-0
+    peerDependenciesMeta:
+      msw:
+        optional: true
+      vite:
+        optional: true
+
+  '@vitest/pretty-format@3.2.7':
+    resolution: {integrity: sha512-KUHlwqVu0sRlhCdyPdQ/wBoTfRahjUky1MubOmYw9fWfIZy1gNoHpuaaQBPAaMaVYdQYHJLurzj8ECCj5OwTqA==}
+
+  '@vitest/runner@3.2.7':
+    resolution: {integrity: sha512-sB9y4ovltoQP+WaUPwmSxO9WIg9Ig694Di5PalVPsYHklAdE027mehpWF2SQSVq+k6sFgaivbTjTJwZLSHbedA==}
+
+  '@vitest/snapshot@3.2.7':
+    resolution: {integrity: sha512-7C+MwShwtBSI5Buwoyg3s/iY1eHL9PKAf+O1wVh/TdnjXUtkoL/9YQtre90i4MtNXM6edP1wJ2zOBpfCyhIS7g==}
+
+  '@vitest/spy@3.2.7':
+    resolution: {integrity: sha512-Q2eQGI6d2L/hBtZ0qNuKcAGid68XK6cv1xsoaIma6PaJhHPoqcEJhYpXZ/5myCMqkNgtP6UKuBhbc0nHKnrkuQ==}
+
+  '@vitest/utils@3.2.7':
+    resolution: {integrity: sha512-x6BDOd7dyo3PFLY3I9/HJ25X/6OurhGXk2/B9gOZNPF7XDVjeBK4k01lQE5uvDpbuheErh91qYuE1E2OEjK3Rw==}
+
+  assertion-error@2.0.1:
+    resolution: {integrity: sha512-Izi8RQcffqCeNVgFigKli1ssklIbpHnCYc6AknXGYoB6grJqyeby7jv12JUQgmTAnIDnbck1uxksT4dzN3PWBA==}
+    engines: {node: '>=12'}
+
+  cac@6.7.14:
+    resolution: {integrity: sha512-b6Ilus+c3RrdDk+JhLKUAQfzzgLEPy6wcXqS7f/xe1EETvsDP6GORG7SFuOs6cID5YkqchW/LXZbX5bc8j7ZcQ==}
+    engines: {node: '>=8'}
+
+  chai@5.3.3:
+    resolution: {integrity: sha512-4zNhdJD/iOjSH0A05ea+Ke6MU5mmpQcbQsSOkgdaUMJ9zTlDTD/GYlwohmIE2u0gaxHYiVHEn1Fw9mZ/ktJWgw==}
+    engines: {node: '>=18'}
+
+  check-error@2.1.3:
+    resolution: {integrity: sha512-PAJdDJusoxnwm1VwW07VWwUN1sl7smmC3OKggvndJFadxxDRyFJBX/ggnu/KE4kQAB7a3Dp8f/YXC1FlUprWmA==}
+    engines: {node: '>= 16'}
+
+  csstype@3.2.3:
+    resolution: {integrity: sha512-z1HGKcYy2xA8AGQfwrn0PAy+PB7X/GSj3UVJW9qKyn43xWa+gl5nXmU4qqLMRzWVLFC8KusUX8T/0kCiOYpAIQ==}
+
+  debug@4.4.3:
+    resolution: {integrity: sha512-RGwwWnwQvkVfavKVt22FGLw+xYSdzARwm0ru6DhTVA3umU5hZc28V3kO4stgYryrTlLpuvgI9GiijltAjNbcqA==}
+    engines: {node: '>=6.0'}
+    peerDependencies:
+      supports-color: '*'
+    peerDependenciesMeta:
+      supports-color:
+        optional: true
+
+  deep-eql@5.0.2:
+    resolution: {integrity: sha512-h5k/5U50IJJFpzfL6nO9jaaumfjO/f2NjK/oYB2Djzm4p9L+3T9qWpZqZ2hAbLPuuYq9wrU08WQyBTL5GbPk5Q==}
+    engines: {node: '>=6'}
+
+  es-module-lexer@1.7.0:
+    resolution: {integrity: sha512-jEQoCwk8hyb2AZziIOLhDqpm5+2ww5uIE6lkO/6jcOCusfk6LhMHpXXfBLXTZ7Ydyt0j4VoUQv6uGNYbdW+kBA==}
+
+  esbuild@0.25.12:
+    resolution: {integrity: sha512-bbPBYYrtZbkt6Os6FiTLCTFxvq4tt3JKall1vRwshA3fdVztsLAatFaZobhkBC8/BrPetoa0oksYoKXoG4ryJg==}
+    engines: {node: '>=18'}
+    hasBin: true
+
+  estree-walker@3.0.3:
+    resolution: {integrity: sha512-7RUKfXgSMMkzt6ZuXmqapOurLGPPfgj6l9uRZ7lRGolvk0y2yocc35LdcxKC5PQZdn2DMqioAQ2NoWcrTKmm6g==}
+
+  expect-type@1.4.0:
+    resolution: {integrity: sha512-KfYbmpRm0VbLjEvVa9yGwCi9GI34xvi7A/HXYWQO65CSD2u3MczUJSuwXKFIxlGsgBQizV9q5J9NHj4VG0n+pA==}
+    engines: {node: '>=12.0.0'}
+
+  fdir@6.5.0:
+    resolution: {integrity: sha512-tIbYtZbucOs0BRGqPJkshJUYdL+SDH7dVM8gjy+ERp3WAUjLEFJE+02kanyHtwjWOnwrKYBiwAmM0p4kLJAnXg==}
+    engines: {node: '>=12.0.0'}
+    peerDependencies:
+      picomatch: ^3 || ^4
+    peerDependenciesMeta:
+      picomatch:
+        optional: true
+
+  fsevents@2.3.3:
+    resolution: {integrity: sha512-5xoDfX+fL7faATnagmWPpbFtwh/R77WmMMqqHGS65C3vvB0YHrgF+B1YmZ3441tMj5n63k0212XNoJwzlhffQw==}
+    engines: {node: ^8.16.0 || ^10.6.0 || >=11.0.0}
+    os: [darwin]
+
+  js-tokens@9.0.1:
+    resolution: {integrity: sha512-mxa9E9ITFOt0ban3j6L5MpjwegGz6lBQmM1IJkWeBZGcMxto50+eWdjC/52xDbS2vy0k7vIMK0Fe2wfL9OQSpQ==}
+
+  loupe@3.2.1:
+    resolution: {integrity: sha512-CdzqowRJCeLU72bHvWqwRBBlLcMEtIvGrlvef74kMnV2AolS9Y8xUv1I0U/MNAWMhBlKIoyuEgoJ0t/bbwHbLQ==}
+
+  magic-string@0.30.21:
+    resolution: {integrity: sha512-vd2F4YUyEXKGcLHoq+TEyCjxueSeHnFxyyjNp80yg0XV4vUhnDer/lvvlqM/arB5bXQN5K2/3oinyCRyx8T2CQ==}
+
+  ms@2.1.3:
+    resolution: {integrity: sha512-6FlzubTLZG3J2a/NVCAleEhjzq5oxgHyaCU9yYXvcLsvoVaHJq/s5xXI6/XXP6tz7R9xAOtHnSO/tXtF3WRTlA==}
+
+  nanoid@3.3.20:
+    resolution: {integrity: sha512-uKdg2G3GNCKQn9byYOpxbGqrT2fGO5KRt5J/8b3pok8rT6qxGWF6hxMyJiEYtAf+FVyYuD9hRaDqX5uPFYJ4ZQ==}
+    engines: {node: ^10 || ^12 || ^13.7 || ^14 || >=15.0.1}
+    hasBin: true
+
+  pathe@2.0.3:
+    resolution: {integrity: sha512-WUjGcAqP1gQacoQe+OBJsFA7Ld4DyXuUIjZ5cc75cLHvJ7dtNsTugphxIADwspS+AraAUePCKrSVtPLFj/F88w==}
+
+  pathval@2.0.1:
+    resolution: {integrity: sha512-//nshmD55c46FuFw26xV/xFAaB5HF9Xdap7HJBBnrKdAd6/GxDBaNA1870O79+9ueg61cZLSVc+OaFlfmObYVQ==}
+    engines: {node: '>= 14.16'}
+
+  picocolors@1.1.1:
+    resolution: {integrity: sha512-xceH2snhtb5M9liqDsmEw56le376mTZkEX/jEb/RxNFyegNul7eNslCXP9FDj/Lcu0X8KEyMceP2ntpaHrDEVA==}
+
+  picomatch@4.0.7:
+    resolution: {integrity: sha512-qcJu88Q2IWqJsDD529JKMdwGm/dvInW4HvQnRwiH9JtihJvzGOscDtHE3x1pBKeUOTysQ8kVmLnJ2kJu7yhcGA==}
+    engines: {node: '>=12'}
+
+  postcss@8.5.32:
+    resolution: {integrity: sha512-LJlKCCAUFKOuZxipUdYw1NzIITEsPcgyOG9LkvRJvuKj/bRzbuRY0ARXvL0pWGpsZvn8jku+LMep2eU0seHp8g==}
+    engines: {node: ^10 || ^12 || >=14}
+
+  react-dom@19.3.1:
+    resolution: {integrity: sha512-Y0bARz53lhEC1NMCASs0/j+faB/zqt3R8hpvg1e8+61ZVJ4UL0UdC4cBbXfZMcIuhrfgeILTLe+ZeBCavQPtKQ==}
+    peerDependencies:
+      react: ^19.3.1
+
+  react@19.3.1:
+    resolution: {integrity: sha512-QNhWdt7nrgVWWQG58QuGsAR3jv3Hbe4mb4vz7w2csnHavciZJgda1CPNaldF6eVxv90ud3jUXpKlHL69gO38yw==}
+    engines: {node: '>=0.10.0'}
+
+  rollup@4.65.1:
+    resolution: {integrity: sha512-HzD4IdphaPMvuAacnL/vtoq5B8FwqewKvxTtqYibWvP6VDyZ+UsTtlw5F8HIOIIpLQAkN2NOP/0sM3puo9xN/A==}
+    engines: {node: '>=18.0.0', npm: '>=8.0.0'}
+    hasBin: true
+
+  scheduler@0.28.0:
+    resolution: {integrity: sha512-juorfCmIkIw8tT+p5BXSm6PJjQF/ycEYmKyzURCIt/RaZIhL+PulbQ9Yu2z1HdOJDdqDTlxA1+xKBmHXJsczAw==}
+
+  siginfo@2.0.0:
+    resolution: {integrity: sha512-ybx0WO1/8bSBLEWXZvEd7gMW3Sn3JFlW3TvX1nREbDLRNQNaeNN8WK0meBwPdAaOI7TtRRRJn/Es1zhrrCHu7g==}
+
+  source-map-js@1.2.2:
+    resolution: {integrity: sha512-KGj/8Y43x35aZVDtt+J4mK1hoLGHULMYfSkODJNQjNDC3oW1PqPoxMwo0pLUsWM/UEGzON/NxeHywEfNXNP3Vw==}
+    engines: {node: '>=0.10.0'}
+
+  stackback@0.0.2:
+    resolution: {integrity: sha512-1XMJE5fQo1jGH6Y/7ebnwPOBEkIEnT4QF32d5R1+VXdXveM0IBMJt8zfaxX1P3QhVwrYe+576+jkANtSS2mBbw==}
+
+  std-env@3.10.0:
+    resolution: {integrity: sha512-5GS12FdOZNliM5mAOxFRg7Ir0pWz8MdpYm6AY6VPkGpbA7ZzmbzNcBJQ0GPvvyWgcY7QAhCgf9Uy89I03faLkg==}
+
+  strip-literal@3.1.0:
+    resolution: {integrity: sha512-8r3mkIM/2+PpjHoOtiAW8Rg3jJLHaV7xPwG+YRGrv6FP0wwk/toTpATxWYOW0BKdWwl82VT2tFYi5DlROa0Mxg==}
+
+  tinybench@2.9.0:
+    resolution: {integrity: sha512-0+DUvqWMValLmha6lr4kD8iAMK1HzV0/aKnCtWb9v9641TnP/MFb7Pc2bxoxQjTXAErryXVgUOfv2YqNllqGeg==}
+
+  tinyexec@0.3.2:
+    resolution: {integrity: sha512-KQQR9yN7R5+OSwaK0XQoj22pwHoTlgYqmUscPYoknOoWCWfj/5/ABTMRi69FrKU5ffPVh5QcFikpWJI/P1ocHA==}
+
+  tinyglobby@0.2.17:
+    resolution: {integrity: sha512-wXR/dYpcqKmfWpEdZjiKJOwCNFndD0DMnrW/cYjVGttEkBfVgcLFHoNrlj47mjOVic9yyNu65alsgF4NQyTa2g==}
+    engines: {node: '>=12.0.0'}
+
+  tinypool@1.1.1:
+    resolution: {integrity: sha512-Zba82s87IFq9A9XmjiX5uZA/ARWDrB03OHlq+Vw1fSdt0I+4/Kutwy8BP4Y/y/aORMo61FQ0vIb5j44vSo5Pkg==}
+    engines: {node: ^18.0.0 || >=20.0.0}
+
+  tinyrainbow@2.0.0:
+    resolution: {integrity: sha512-op4nsTR47R6p0vMUUoYl/a+ljLFVtlfaXkLQmqfLR1qHma1h/ysYk4hEXZ880bf2CYgTskvTa/e196Vd5dDQXw==}
+    engines: {node: '>=14.0.0'}
+
+  tinyspy@4.0.6:
+    resolution: {integrity: sha512-u8KszXvGfU68hVcZpRHKG28T0krMuv2G5nDhiHaMLen/gIuFEgIJhaJuO69qjnXg5paSrbPMFfx3brNuN8eVSg==}
+    engines: {node: '>=14.0.0'}
+
+  typescript@5.9.3:
+    resolution: {integrity: sha512-jl1vZzPDinLr9eUt3J/t7V6FgNEw9QjvBPdysz9KfQDD41fQrC2Y4vKQdiaUpFT4bXlb1RHhLpp8wtm6M5TgSw==}
+    engines: {node: '>=14.17'}
+    hasBin: true
+
+  vite-node@3.2.4:
+    resolution: {integrity: sha512-EbKSKh+bh1E1IFxeO0pg1n4dvoOTt0UDiXMd/qn++r98+jPO1xtJilvXldeuQ8giIB5IkpjCgMleHMNEsGH6pg==}
+    engines: {node: ^18.0.0 || ^20.0.0 || >=22.0.0}
+    hasBin: true
+
+  vite@6.4.5:
+    resolution: {integrity: sha512-4enwjFfi4IwtEh0w+jPzpLVOFQiPHmmzPxcHXQOyEur47o6u0jE573DmGpjA+7irXoMLYRZD5ZaFUEneS3abPg==}
+    engines: {node: ^18.0.0 || ^20.0.0 || >=22.0.0}
+    hasBin: true
+    peerDependencies:
+      '@types/node': ^18.0.0 || ^20.0.0 || >=22.0.0
+      jiti: '>=1.21.0'
+      less: '*'
+      lightningcss: ^1.21.0
+      sass: '*'
+      sass-embedded: '*'
+      stylus: '*'
+      sugarss: '*'
+      terser: ^5.16.0
+      tsx: ^4.8.1
+      yaml: ^2.4.2
+    peerDependenciesMeta:
+      '@types/node':
+        optional: true
+      jiti:
+        optional: true
+      less:
+        optional: true
+      lightningcss:
+        optional: true
+      sass:
+        optional: true
+      sass-embedded:
+        optional: true
+      stylus:
+        optional: true
+      sugarss:
+        optional: true
+      terser:
+        optional: true
+      tsx:
+        optional: true
+      yaml:
+        optional: true
+
+  vitest@3.2.7:
+    resolution: {integrity: sha512-KrxIJ62Fd89gfysR4WotlgZABiz2dqFPgqGzX7s+CwsqLFomRH7777ZcrOD6+WVAh7khPQP41A+BKbpcJFrdEg==}
+    engines: {node: ^18.0.0 || ^20.0.0 || >=22.0.0}
+    hasBin: true
+    peerDependencies:
+      '@edge-runtime/vm': '*'
+      '@types/debug': ^4.1.12
+      '@types/node': ^18.0.0 || ^20.0.0 || >=22.0.0
+      '@vitest/browser': 3.2.7
+      '@vitest/ui': 3.2.7
+      happy-dom: '*'
+      jsdom: '*'
+    peerDependenciesMeta:
+      '@edge-runtime/vm':
+        optional: true
+      '@types/debug':
+        optional: true
+      '@types/node':
+        optional: true
+      '@vitest/browser':
+        optional: true
+      '@vitest/ui':
+        optional: true
+      happy-dom:
+        optional: true
+      jsdom:
+        optional: true
+
+  why-is-node-running@2.3.0:
+    resolution: {integrity: sha512-hUrmaWBdVDcxvYqnyh09zunKzROWjbZTiNy8dBEjkS7ehEDQibXJ7XvlmtbwuTclUiIyN+CyXQD4Vmko8fNm8w==}
+    engines: {node: '>=8'}
+    hasBin: true
+
+snapshots:
+
+  '@esbuild/aix-ppc64@0.25.12':
+    optional: true
+
+  '@esbuild/android-arm64@0.25.12':
+    optional: true
+
+  '@esbuild/android-arm@0.25.12':
+    optional: true
+
+  '@esbuild/android-x64@0.25.12':
+    optional: true
+
+  '@esbuild/darwin-arm64@0.25.12':
+    optional: true
+
+  '@esbuild/darwin-x64@0.25.12':
+    optional: true
+
+  '@esbuild/freebsd-arm64@0.25.12':
+    optional: true
+
+  '@esbuild/freebsd-x64@0.25.12':
+    optional: true
+
+  '@esbuild/linux-arm64@0.25.12':
+    optional: true
+
+  '@esbuild/linux-arm@0.25.12':
+    optional: true
+
+  '@esbuild/linux-ia32@0.25.12':
+    optional: true
+
+  '@esbuild/linux-loong64@0.25.12':
+    optional: true
+
+  '@esbuild/linux-mips64el@0.25.12':
+    optional: true
+
+  '@esbuild/linux-ppc64@0.25.12':
+    optional: true
+
+  '@esbuild/linux-riscv64@0.25.12':
+    optional: true
+
+  '@esbuild/linux-s390x@0.25.12':
+    optional: true
+
+  '@esbuild/linux-x64@0.25.12':
+    optional: true
+
+  '@esbuild/netbsd-arm64@0.25.12':
+    optional: true
+
+  '@esbuild/netbsd-x64@0.25.12':
+    optional: true
+
+  '@esbuild/openbsd-arm64@0.25.12':
+    optional: true
+
+  '@esbuild/openbsd-x64@0.25.12':
+    optional: true
+
+  '@esbuild/openharmony-arm64@0.25.12':
+    optional: true
+
+  '@esbuild/sunos-x64@0.25.12':
+    optional: true
+
+  '@esbuild/win32-arm64@0.25.12':
+    optional: true
+
+  '@esbuild/win32-ia32@0.25.12':
+    optional: true
+
+  '@esbuild/win32-x64@0.25.12':
+    optional: true
+
+  '@jridgewell/sourcemap-codec@1.6.0': {}
+
+  '@napi-rs/lzma-linux-x64-gnu@1.5.1':
+    optional: true
+
+  '@rollup/rollup-android-arm-eabi@4.65.1':
+    optional: true
+
+  '@rollup/rollup-android-arm64@4.65.1':
+    optional: true
+
+  '@rollup/rollup-darwin-arm64@4.65.1':
+    optional: true
+
+  '@rollup/rollup-darwin-x64@4.65.1':
+    optional: true
+
+  '@rollup/rollup-freebsd-arm64@4.65.1':
+    optional: true
+
+  '@rollup/rollup-freebsd-x64@4.65.1':
+    optional: true
+
+  '@rollup/rollup-linux-arm-gnueabihf@4.65.1':
+    optional: true
+
+  '@rollup/rollup-linux-arm-musleabihf@4.65.1':
+    optional: true
+
+  '@rollup/rollup-linux-arm64-gnu@4.65.1':
+    optional: true
+
+  '@rollup/rollup-linux-arm64-musl@4.65.1':
+    optional: true
+
+  '@rollup/rollup-linux-loong64-gnu@4.65.1':
+    optional: true
+
+  '@rollup/rollup-linux-loong64-musl@4.65.1':
+    optional: true
+
+  '@rollup/rollup-linux-ppc64-gnu@4.65.1':
+    optional: true
+
+  '@rollup/rollup-linux-ppc64-musl@4.65.1':
+    optional: true
+
+  '@rollup/rollup-linux-riscv64-gnu@4.65.1':
+    optional: true
+
+  '@rollup/rollup-linux-riscv64-musl@4.65.1':
+    optional: true
+
+  '@rollup/rollup-linux-s390x-gnu@4.65.1':
+    optional: true
+
+  '@rollup/rollup-linux-x64-gnu@4.65.1':
+    optional: true
+
+  '@rollup/rollup-linux-x64-musl@4.65.1':
+    optional: true
+
+  '@rollup/rollup-openbsd-x64@4.65.1':
+    optional: true
+
+  '@rollup/rollup-openharmony-arm64@4.65.1':
+    optional: true
+
+  '@rollup/rollup-win32-arm64-msvc@4.65.1':
+    optional: true
+
+  '@rollup/rollup-win32-ia32-msvc@4.65.1':
+    optional: true
+
+  '@rollup/rollup-win32-x64-gnu@4.65.1':
+    optional: true
+
+  '@rollup/rollup-win32-x64-msvc@4.65.1':
+    optional: true
+
+  '@types/chai@5.2.3':
+    dependencies:
+      '@types/deep-eql': 4.0.2
+      assertion-error: 2.0.1
+
+  '@types/deep-eql@4.0.2': {}
+
+  '@types/estree@1.0.9': {}
+
+  '@types/react-dom@19.3.0(@types/react@19.3.0)':
+    dependencies:
+      '@types/react': 19.3.0
+
+  '@types/react@19.3.0':
+    dependencies:
+      csstype: 3.2.3
+
+  '@vitest/expect@3.2.7':
+    dependencies:
+      '@types/chai': 5.2.3
+      '@vitest/spy': 3.2.7
+      '@vitest/utils': 3.2.7
+      chai: 5.3.3
+      tinyrainbow: 2.0.0
+
+  '@vitest/mocker@3.2.7(vite@6.4.5)':
+    dependencies:
+      '@vitest/spy': 3.2.7
+      estree-walker: 3.0.3
+      magic-string: 0.30.21
+    optionalDependencies:
+      vite: 6.4.5
+
+  '@vitest/pretty-format@3.2.7':
+    dependencies:
+      tinyrainbow: 2.0.0
+
+  '@vitest/runner@3.2.7':
+    dependencies:
+      '@vitest/utils': 3.2.7
+      pathe: 2.0.3
+      strip-literal: 3.1.0
+
+  '@vitest/snapshot@3.2.7':
+    dependencies:
+      '@vitest/pretty-format': 3.2.7
+      magic-string: 0.30.21
+      pathe: 2.0.3
+
+  '@vitest/spy@3.2.7':
+    dependencies:
+      tinyspy: 4.0.6
+
+  '@vitest/utils@3.2.7':
+    dependencies:
+      '@vitest/pretty-format': 3.2.7
+      loupe: 3.2.1
+      tinyrainbow: 2.0.0
+
+  assertion-error@2.0.1: {}
+
+  cac@6.7.14: {}
+
+  chai@5.3.3:
+    dependencies:
+      assertion-error: 2.0.1
+      check-error: 2.1.3
+      deep-eql: 5.0.2
+      loupe: 3.2.1
+      pathval: 2.0.1
+
+  check-error@2.1.3: {}
+
+  csstype@3.2.3: {}
+
+  debug@4.4.3:
+    dependencies:
+      ms: 2.1.3
+
+  deep-eql@5.0.2: {}
+
+  es-module-lexer@1.7.0: {}
+
+  esbuild@0.25.12:
+    optionalDependencies:
+      '@esbuild/aix-ppc64': 0.25.12
+      '@esbuild/android-arm': 0.25.12
+      '@esbuild/android-arm64': 0.25.12
+      '@esbuild/android-x64': 0.25.12
+      '@esbuild/darwin-arm64': 0.25.12
+      '@esbuild/darwin-x64': 0.25.12
+      '@esbuild/freebsd-arm64': 0.25.12
+      '@esbuild/freebsd-x64': 0.25.12
+      '@esbuild/linux-arm': 0.25.12
+      '@esbuild/linux-arm64': 0.25.12
+      '@esbuild/linux-ia32': 0.25.12
+      '@esbuild/linux-loong64': 0.25.12
+      '@esbuild/linux-mips64el': 0.25.12
+      '@esbuild/linux-ppc64': 0.25.12
+      '@esbuild/linux-riscv64': 0.25.12
+      '@esbuild/linux-s390x': 0.25.12
+      '@esbuild/linux-x64': 0.25.12
+      '@esbuild/netbsd-arm64': 0.25.12
+      '@esbuild/netbsd-x64': 0.25.12
+      '@esbuild/openbsd-arm64': 0.25.12
+      '@esbuild/openbsd-x64': 0.25.12
+      '@esbuild/openharmony-arm64': 0.25.12
+      '@esbuild/sunos-x64': 0.25.12
+      '@esbuild/win32-arm64': 0.25.12
+      '@esbuild/win32-ia32': 0.25.12
+      '@esbuild/win32-x64': 0.25.12
+
+  estree-walker@3.0.3:
+    dependencies:
+      '@types/estree': 1.0.9
+
+  expect-type@1.4.0: {}
+
+  fdir@6.5.0(picomatch@4.0.7):
+    optionalDependencies:
+      picomatch: 4.0.7
+
+  fsevents@2.3.3:
+    optional: true
+
+  js-tokens@9.0.1: {}
+
+  loupe@3.2.1: {}
+
+  magic-string@0.30.21:
+    dependencies:
+      '@jridgewell/sourcemap-codec': 1.6.0
+
+  ms@2.1.3: {}
+
+  nanoid@3.3.20: {}
+
+  pathe@2.0.3: {}
+
+  pathval@2.0.1: {}
+
+  picocolors@1.1.1: {}
+
+  picomatch@4.0.7: {}
+
+  postcss@8.5.32:
+    dependencies:
+      nanoid: 3.3.20
+      picocolors: 1.1.1
+      source-map-js: 1.2.2
+
+  react-dom@19.3.1(react@19.3.1):
+    dependencies:
+      react: 19.3.1
+      scheduler: 0.28.0
+
+  react@19.3.1: {}
+
+  rollup@4.65.1:
+    dependencies:
+      '@types/estree': 1.0.9
+    optionalDependencies:
+      '@napi-rs/lzma-linux-x64-gnu': 1.5.1
+      '@rollup/rollup-android-arm-eabi': 4.65.1
+      '@rollup/rollup-android-arm64': 4.65.1
+      '@rollup/rollup-darwin-arm64': 4.65.1
+      '@rollup/rollup-darwin-x64': 4.65.1
+      '@rollup/rollup-freebsd-arm64': 4.65.1
+      '@rollup/rollup-freebsd-x64': 4.65.1
+      '@rollup/rollup-linux-arm-gnueabihf': 4.65.1
+      '@rollup/rollup-linux-arm-musleabihf': 4.65.1
+      '@rollup/rollup-linux-arm64-gnu': 4.65.1
+      '@rollup/rollup-linux-arm64-musl': 4.65.1
+      '@rollup/rollup-linux-loong64-gnu': 4.65.1
+      '@rollup/rollup-linux-loong64-musl': 4.65.1
+      '@rollup/rollup-linux-ppc64-gnu': 4.65.1
+      '@rollup/rollup-linux-ppc64-musl': 4.65.1
+      '@rollup/rollup-linux-riscv64-gnu': 4.65.1
+      '@rollup/rollup-linux-riscv64-musl': 4.65.1
+      '@rollup/rollup-linux-s390x-gnu': 4.65.1
+      '@rollup/rollup-linux-x64-gnu': 4.65.1
+      '@rollup/rollup-linux-x64-musl': 4.65.1
+      '@rollup/rollup-openbsd-x64': 4.65.1
+      '@rollup/rollup-openharmony-arm64': 4.65.1
+      '@rollup/rollup-win32-arm64-msvc': 4.65.1
+      '@rollup/rollup-win32-ia32-msvc': 4.65.1
+      '@rollup/rollup-win32-x64-gnu': 4.65.1
+      '@rollup/rollup-win32-x64-msvc': 4.65.1
+      fsevents: 2.3.3
+
+  scheduler@0.28.0: {}
+
+  siginfo@2.0.0: {}
+
+  source-map-js@1.2.2: {}
+
+  stackback@0.0.2: {}
+
+  std-env@3.10.0: {}
+
+  strip-literal@3.1.0:
+    dependencies:
+      js-tokens: 9.0.1
+
+  tinybench@2.9.0: {}
+
+  tinyexec@0.3.2: {}
+
+  tinyglobby@0.2.17:
+    dependencies:
+      fdir: 6.5.0(picomatch@4.0.7)
+      picomatch: 4.0.7
+
+  tinypool@1.1.1: {}
+
+  tinyrainbow@2.0.0: {}
+
+  tinyspy@4.0.6: {}
+
+  typescript@5.9.3: {}
+
+  vite-node@3.2.4:
+    dependencies:
+      cac: 6.7.14
+      debug: 4.4.3
+      es-module-lexer: 1.7.0
+      pathe: 2.0.3
+      vite: 6.4.5
+    transitivePeerDependencies:
+      - '@types/node'
+      - jiti
+      - less
+      - lightningcss
+      - sass
+      - sass-embedded
+      - stylus
+      - sugarss
+      - supports-color
+      - terser
+      - tsx
+      - yaml
+
+  vite@6.4.5:
+    dependencies:
+      esbuild: 0.25.12
+      fdir: 6.5.0(picomatch@4.0.7)
+      picomatch: 4.0.7
+      postcss: 8.5.32
+      rollup: 4.65.1
+      tinyglobby: 0.2.17
+    optionalDependencies:
+      fsevents: 2.3.3
+
+  vitest@3.2.7:
+    dependencies:
+      '@types/chai': 5.2.3
+      '@vitest/expect': 3.2.7
+      '@vitest/mocker': 3.2.7(vite@6.4.5)
+      '@vitest/pretty-format': 3.2.7
+      '@vitest/runner': 3.2.7
+      '@vitest/snapshot': 3.2.7
+      '@vitest/spy': 3.2.7
+      '@vitest/utils': 3.2.7
+      chai: 5.3.3
+      debug: 4.4.3
+      expect-type: 1.4.0
+      magic-string: 0.30.21
+      pathe: 2.0.3
+      picomatch: 4.0.7
+      std-env: 3.10.0
+      tinybench: 2.9.0
+      tinyexec: 0.3.2
+      tinyglobby: 0.2.17
+      tinypool: 1.1.1
+      tinyrainbow: 2.0.0
+      vite: 6.4.5
+      vite-node: 3.2.4
+      why-is-node-running: 2.3.0
+    transitivePeerDependencies:
+      - jiti
+      - less
+      - lightningcss
+      - msw
+      - sass
+      - sass-embedded
+      - stylus
+      - sugarss
+      - supports-color
+      - terser
+      - tsx
+      - yaml
+
+  why-is-node-running@2.3.0:
+    dependencies:
+      siginfo: 2.0.0
+      stackback: 0.0.2
+
+allowBuilds:
+  esbuild: true
+verifyDepsBeforeRun: false
+
+# Is Your Roof Ready?
+
+Oklahoma roof education prototype using React, TypeScript, Vite and plain CSS. Existing layout, editable SVG houses, keyboard/pointer reveal and recovery timeline are retained. The calculation engine now separates roof size/cost, claims, physical vulnerability, multi-year risk and expected financial cost.
+
+## Run locally
+
+Use Node.js 22+ and pnpm 11 (the project pins the package manager):
+
+```sh
+pnpm install
+pnpm dev
+```
+
+Open Vite's printed Local URL, normally http://127.0.0.1:5173. Build or test with:
+
+```sh
+pnpm test          # Vitest, one complete run
+pnpm test:watch    # watch model tests while editing
+pnpm build        # production TypeScript check and static bundle
+pnpm preview      # serve the production bundle
+```
+
+Answers and editable assumptions are browser memory only. There is no backend or policy upload. Verified NOAA MRMS footprint history is bundled for all 77 counties and 696 Oklahoma-intersecting ZCTAs. Supported ZIPs select Census ZCTAs directly; unsupported ZIPs show no data. ZCTAs are geographic approximations, not exact USPS delivery boundaries. No deployment is performed.
+
+## Adjustable assumptions
+
+`src/data/config.ts` is the single source of defaults and adjustable assumptions: unit-cost ranges, slope and complexity, material factors, fragility tables/scales, hazard rates, claims assumptions, grant requirements, premium changes and replacement schedule. On-page expandable controls edit a cloned shared-state configuration. Core home and claim controls remain in their existing sections. Invalid edits show an error and remove estimates until corrected.
+
+- Home → **Roof size and editable local cost ranges**: geometry, labor/material ranges, removal and decking. Low/central/high costs are shown; central costs feed comparison.
+- Home → **Editable prototype fragility tables**: selected material's severity rows and lookup scales. No engineering calibration is claimed.
+- Insurance → **Hypothetical coverage and approval**: coverage, decision, approved share and completed repairs. Unknown coverage/basis or a pending claim assumes no payment.
+- Location exposure → **Historical sources, size categories and limitations**: real MRMS footprint history, coverage gaps, size categories, rate intervals and sources.
+- Comparison assumptions → **Experimental roof-point hazard assumptions**: manually assumed point-exposure rates, independent event count, future claim filing/approval probabilities. These are separate from regional history.
+- Comparison → **Grant, premium, schedule and storm assumptions**: all grant conditions, requested amount, eligible work, annual premium changes, schedule and shared storm quantile.
+
+Grant defaults to zero until eligibility, approval and funding are all selected. The $10,000 program ceiling and $749 illustrative annual savings are configurable, conditional assumptions. Insurance never automatically pays for all damage. The engine distinguishes initial versus final-potential RCV payments and never double-counts recovery.
+
+## Model architecture
+
+| File | Responsibility |
+| --- | --- |
+| `src/models/domain.ts` | Typed cost, claim, fragility, hazard, grant and model-provider contracts |
+| `src/models/validation.ts` | Pure numeric/category validation |
+| `src/models/roofCost.ts` | Footprint-based roof area and low/central/high replacement costs |
+| `src/models/insurance.ts` | Explicit approval/coverage, ACV/RCV, deductible and capped payments |
+| `src/models/vulnerability.ts` | Editable illustrative tables and validated outcome distribution |
+| `src/models/risk.ts` | Stationary multi-severity Poisson risk, Bernoulli helper and independent counts |
+| `src/models/financial.ts` | Three alternatives, conditional grants and survival-weighted schedules |
+| `src/models/calculations.ts` | Composition adapter used by the existing application |
+| `src/components/ModelControls.tsx` | Assumption inputs using the established styling system |
+| `src/components/EngineResults.tsx` | Probability distinctions and three-way financial table |
+| `src/sections/App.tsx` | Existing layout and shared input state |
+
+`VulnerabilityModel.evaluate` can be implemented by a future published provider. `compare(home, policy, scenario, settings, provider)` accepts an optional provider; risk and financial modules also accept it directly. Li, Porter and Goda (2024) is documented as a future source, with no coefficients copied or fabricated. Category-to-diameter mapping requires validation before importing a continuous published function.
+
+## Interpretation
+
+The selected storm is a hypothetical physical outcome and claim cash-flow calculation. Expected 1/5/10-year costs instead integrate all severity rates, damage branches, future filing and approval chances. Changing only the selected storm does not change expected costs. Historical area exposure is displayed separately from the experimental point-exposure / roof-damage scenario. Regional exposure cannot be interpreted as a roof-point probability. Four separate experimental scenario risks remain: assumed point exposure, physical damage, a positive-payment insured claim, and full replacement.
+
+Keeping the old roof transitions to a new conventional roof after storm replacement or scheduled work. Scheduled work is charged only if still needed. Insurance payouts compensate losses; they are not investment returns. All costs are undiscounted and fragility/hazard inputs remain prototype assumptions.
+
+Read **MODEL_ASSUMPTIONS.md** for all formulas, default values, source classifications and limitations, including climate, aging, independence, uncertain estimates and payment-limit ordering.
+
+## Future static deployment
+
+`pnpm build` produces `dist`. The existing relative Vite base supports a future GitHub Pages subpath and iframe embedding. Publish `dist` when ready; no hosting or external data connection is required for local exploration.
+
+## Historical NOAA/Census pipeline
+
+See **docs/HAIL_DATA.md** for verified source schemas, actual import counts, source provenance, download/import commands, manual download fallback, polygon methods, missing-data rules and limitations. The current static artifact is `public/data/hail-history.json`. No runtime NOAA API request is made. Importing a future compatible data file does not require changing React components.
+
+After activating the documented Python environment:
+
+```sh
+pnpm run test:data
+pnpm run data:validate
+```
+
+The historical annual rate uses complete catalog years 2022–2025. October–December 2020 is partial; a missing 2021 UTC file makes that year gapped and excluded from the rate denominator. Rates count exposure days somewhere in a county/ZCTA, not independent reports or hail at an individual roof. Sampling intervals exclude radar, climate and spatial-assignment uncertainties. No published damage fragility is integrated.
+
+## Corrected ≥1.5-inch exposure model
+
+The current v2 history file replaces the retired county-anywhere Poisson probabilities. Exposure is computed from daily unions and exact annual footprint overlap patterns at fixed locations before county/ZCTA area averaging. There are no residential-location weights, so results are explicitly area-weighted. A one-year estimate and exploratory five-/ten-year projections share the existing three-card layout. Typical hail size is the modal qualifying NOAA bin by exclusive exposed area-days, not the county maximum. Unsupported data show no numerical estimate.
+
+See `docs/HAIL_SPATIAL_AUDIT.md` and `data/metadata/hail-spatial-debug.csv` for the ten-county before/after debugging results and the no-broadcast / true-intersection checks. The financial models are unchanged.
+
+To rebuild after fetching official files, activate the documented Python environment and run:
+
+```sh
+python scripts/hail/rebuild_history.py --cache ../../work/hail-cache --work ../../work/hail-rebuild
+python scripts/hail/validate_output.py
+pnpm test
+pnpm run test:data
+pnpm build
+```
+
+The app rejects the legacy v1 metric. Use the complete rebuild wrapper, not the baseline importer alone. Projections resample complete observed years at fixed locations; they are exploratory and cannot account for unseen spatial patterns, climate changes or residential-location differences. Read the method limitations before interpreting them as personal forecasts.
+
+{"compilerOptions":{"target":"ES2022","lib":["ES2022","DOM","DOM.Iterable"],"module":"ESNext","moduleResolution":"Bundler","jsx":"react-jsx","strict":true,"skipLibCheck":true,"noEmit":true,"allowImportingTsExtensions":true},"include":["src"],"exclude":["src/**/*.test.ts"]}
+
+import { defineConfig } from 'vite';
+export default defineConfig({base:'./'});
